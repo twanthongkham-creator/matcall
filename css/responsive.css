@@ -255,6 +255,90 @@
   #topbar-logout span { display: none !important; }
 }
 
+/* ── Basket Card View on Mobile (≤ 768px) ── */
+@media (max-width: 768px) {
+  .request-basket-panel table thead {
+    display: none !important;
+  }
+  .request-basket-panel table, 
+  .request-basket-panel tbody, 
+  .request-basket-panel tr, 
+  .request-basket-panel td {
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+  
+  .request-basket-panel tbody {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    background: #f8fafc;
+  }
+  
+  .request-basket-panel tr {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    padding: 16px 14px !important;
+    position: relative !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+  }
+  
+  .request-basket-panel tr:has(.table-empty) {
+    padding: 24px 12px !important;
+    text-align: center;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  
+  .request-basket-panel td {
+    padding: 5px 0 !important;
+    border: none !important;
+    font-size: 13px !important;
+    text-align: left !important;
+    color: #2d3748;
+  }
+  
+  .request-basket-panel td:nth-child(1) {
+    font-weight: 800 !important;
+    color: #1d3a70 !important;
+    border-bottom: 1px dashed #e2e8f0 !important;
+    padding-bottom: 8px !important;
+    margin-bottom: 8px !important;
+    font-size: 14px !important;
+  }
+  .request-basket-panel td:nth-child(1)::before {
+    content: "รายการที่ ";
+  }
+  
+  .request-basket-panel td:nth-child(2)::before { content: "โรงงาน: "; font-weight: 700; color: #4a5568; }
+  .request-basket-panel td:nth-child(3)::before { content: "วันที่เรียกเข้า: "; font-weight: 700; color: #4a5568; }
+  .request-basket-panel td:nth-child(4)::before { content: "วัตถุดิบ: "; font-weight: 700; color: #4a5568; }
+  .request-basket-panel td:nth-child(5)::before { content: "Supplier: "; font-weight: 700; color: #4a5568; }
+  .request-basket-panel td:nth-child(6)::before { content: "Tank ID: "; font-weight: 700; color: #4a5568; }
+  
+  .request-basket-panel td:nth-child(7) {
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    color: #0c8a7e !important;
+    margin-top: 4px;
+    border-top: 1px solid #f7fafc !important;
+    padding-top: 8px !important;
+  }
+  .request-basket-panel td:nth-child(7)::before { content: "จำนวนเรียกเข้า: "; font-weight: 700; color: #4a5568; }
+  
+  .request-basket-panel td:nth-child(8) {
+    position: absolute !important;
+    top: 12px !important;
+    right: 14px !important;
+    width: auto !important;
+    padding: 0 !important;
+  }
+}
+
 /* ── Print ──────────────────────────────────────────────────── */
 @media print {
   #sidebar,
