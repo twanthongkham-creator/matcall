@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MATCALL – Preview รายงานรายเดือน</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+<div id="app-wrapper">
+
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo">
+        <div class="brand-icon"><i class="bi bi-boxes"></i></div>
+        <div class="brand-text">
+          <span class="brand-name">MATCALL</span>
+          <span class="brand-sub">CALL-OFF SYSTEM</span>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-section-label">เมนูหลัก</div>
+    <ul class="sidebar-nav">
+      <li><a class="nav-item" data-page="index.html" href="index.html"><span class="nav-icon"><i class="bi bi-house-fill"></i></span><span class="nav-label">หน้าหลัก</span></a></li>
+      <li><a class="nav-item" data-page="request.html" href="request.html"><span class="nav-icon"><i class="bi bi-file-earmark-text"></i></span><span class="nav-label">เรียกเข้าวัตถุดิบ</span></a></li>
+      <li><a class="nav-item" data-page="history.html" href="history.html"><span class="nav-icon"><i class="bi bi-clock-history"></i></span><span class="nav-label">ประวัติและสถานะ</span></a></li>
+      <li><a class="nav-item" data-page="receive.html" href="receive.html"><span class="nav-icon"><i class="bi bi-box-seam"></i></span><span class="nav-label">รับวัตถุดิบ</span></a></li>
+      <li><a class="nav-item" data-page="settings.html" href="settings.html"><span class="nav-icon"><i class="bi bi-gear-fill"></i></span><span class="nav-label">จัดการข้อมูล & สิทธิ์</span></a></li>
+    </ul>
+    <div class="sidebar-footer">
+      <div class="user-badge">
+        <div class="user-avatar">M</div>
+        <div class="user-info"><div class="user-name">MATCALL User</div><div class="user-role">Sermsuk PLC</div></div>
+      </div>
+    </div>
+  </nav>
+  <div id="sidebar-overlay"></div>
+
+  <div id="main-content">
+    <header id="topbar">
+      <button id="btn-sidebar-toggle"><i class="bi bi-list"></i></button>
+      <div class="topbar-title">
+        <div class="topbar-page-name">Preview รายงานรายเดือน</div>
+        <div class="topbar-breadcrumb">MATCALL / Receive / Monthly Report</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" onclick="history.back()"><i class="bi bi-arrow-left"></i> กลับ</button>
+        <button class="btn btn-primary" id="btn-copy-pan"><i class="bi bi-clipboard"></i> คัดลอก</button>
+        <button class="btn btn-outline" id="btn-print"><i class="bi bi-printer"></i> พิมพ์</button>
+      </div>
+    </header>
+
+    <main id="page-body">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h1><i class="bi bi-clipboard-data-fill"></i> รายงานสรุปรับวัตถุดิบรายเดือน</h1>
+          <p>Monthly Goods Receipt Summary – ส่งให้ฝ่ายจัดซื้อ</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><i class="bi bi-envelope-fill"></i> รายละเอียดอีเมล</div>
+        <div class="card-body">
+          <div class="email-frame">
+            <div class="email-meta">
+              <div class="email-meta-row">
+                <span class="email-meta-label">To:</span>
+                <span class="email-meta-value" id="pan-meta-to">–</span>
+              </div>
+              <div class="email-meta-row">
+                <span class="email-meta-label">Cc:</span>
+                <span class="email-meta-value" id="pan-meta-cc">–</span>
+              </div>
+              <div class="email-meta-row">
+                <span class="email-meta-label">Subject:</span>
+                <span class="email-meta-value" id="pan-meta-subject">–</span>
+              </div>
+            </div>
+            <div class="email-body-wrap" id="pan-email-body">
+              <div class="spinner-wrap"><div class="spinner"></div><span>กำลังสร้างรายงาน...</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase.js"></script>
+<script src="js/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const items     = JSON.parse(sessionStorage.getItem('email_items') || '[]');
+  const plantCode = sessionStorage.getItem('email_plant')      ?? '';
+  const monthName = sessionStorage.getItem('email_month_name') ?? '';
+
+  if (!items.length) {
+    Toast.warning('ไม่พบข้อมูล');
+    setTimeout(() => window.location.href = 'receive.html', 2000);
+    return;
+  }
+
+  let plantInfo = null;
+  try { plantInfo = await API.getPlantByCode(plantCode); } catch(e){}
+
+  // Build table rows
+  const dataRows = items.map(r => {
+    const diff = r.weight_diff ?? 0;
+    const diffColor = diff < 0 ? '#d9534f' : '#444444';
+    const minus20 = ['HFS42%', 'Liquid Sugar'].includes(r.material_name) ? '-20' : '-';
+    return `<tr>
+      <td style='font-family:"Browallia New",sans-serif;padding:2px 4px;text-align:center;border:1px solid #d1d9e6;font-size:15px'>${r.plant ?? '-'}</td>
+      <td style='font-family:"Browallia New",sans-serif;padding:2px 4px;text-align:center;border:1px solid #d1d9e6;font-size:15px'>${r.delivery_date ? new Date(r.delivery_date).toLocaleDateString('en-GB') : '-'}</td>
+      <td style='font-family:"Browallia New",sans-serif;padding:2px 4px;text-align:left;border:1px solid #d1d9e6;font-size:15px;color:#1d3a70;font-weight:700'>${r.material_name ?? '-'}</td>
+      <td style='font-family:"Browallia New",sans-serif;padding:2px 4px;text-align:left;border:1px solid #d1d9e6;font-size:15px'>${r.supplier_name ?? '-'}</td>
+      <td style='font-family:"Browallia New",sans-serif;padding:2px 4px;text-align:right;border:1px solid #d1d9e6;font-size:15px'>${Fmt.num(r.supplier_weight)} kg</td>
+      <td style='font-family:"Browallia New",sans-serif;padding:2px 4px;text-align:center;border:1px solid #d1d9e6;font-size:15px;color:#d9534f'>${minus20}</td>
+      <td style='font-family:"Browallia New",sans-serif;padding:2px 4px;text-align:right;border:1px solid #d1d9e6;font-size:15px'>${Fmt.num(r.factory_weight)} kg</td>
+      <td style='font-family:"Browallia New",sans-serif;padding:2px 4px;text-align:right;border:1px solid #d1d9e6;font-size:15px;color:${diffColor};font-weight:700'>${Fmt.num(r.weight_diff)}</td>
+      <td style='font-family:"Browallia New",sans-serif;padding:2px 4px;text-align:right;border:1px solid #d1d9e6;font-size:15px;color:#0c8a7e;font-weight:700'>${Fmt.num(r.sap_receive_weight)} kg</td>
+      <td style='font-family:"Browallia New",sans-serif;padding:2px 4px;text-align:center;border:1px solid #d1d9e6;font-size:15px'>${r.do_number ?? '-'}</td>
+    </tr>`;
+  }).join('');
+
+  const totalSW  = items.reduce((s, r) => s + (r.supplier_weight  ?? 0), 0);
+  const totalFW  = items.reduce((s, r) => s + (r.factory_weight   ?? 0), 0);
+  const totalDiff= items.reduce((s, r) => s + (r.weight_diff      ?? 0), 0);
+  const totalSAP = items.reduce((s, r) => s + (r.sap_receive_weight ?? 0), 0);
+
+  const thStyle = "font-family:'Browallia New',sans-serif;background:#0c8a7e;color:#fff;padding:4px;text-align:center;border:1px solid #fff;font-size:17px";
+
+  const emailHTML = `
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:1100px;font-family:'Browallia New',sans-serif;background:#fff;border:1px solid #eef2f6;border-radius:8px">
+    <tr><td style="padding:15px 20px">
+      <h2 style="color:#1d3a70;border-bottom:2px solid #0c8a7e;font-size:20px">รายงานสรุปการรับเข้าวัตถุดิบ (Monthly Goods Receipt Summary)</h2>
+      <p style="font-size:16px">เรียน ทีมงานแผนกจัดซื้อ<br><br>
+        ขอส่งรายงานสรุปยอดการรับเข้าวัตถุดิบที่ผ่านการชั่งน้ำหนักและบันทึกข้อมูลเรียบร้อยแล้ว
+        สำหรับโรงงาน <b>${plantInfo?.plant_name ?? plantCode}</b> รายละเอียดตามตารางด้านล่างครับ
+      </p>
+      <table width="100%" style="border-collapse:collapse;margin-bottom:16px">
+        <thead><tr>
+          <th style="${thStyle}">โรงงาน</th>
+          <th style="${thStyle}">วันที่ส่งมอบ</th>
+          <th style="${thStyle}">รายการ</th>
+          <th style="${thStyle}">บริษัทฯ</th>
+          <th style="${thStyle}">ยอดจากผู้ผลิต</th>
+          <th style="${thStyle}">-20 kg</th>
+          <th style="${thStyle}">ยอดหน้าโรงงาน</th>
+          <th style="${thStyle}">ส่วนต่าง kg</th>
+          <th style="font-family:'Browallia New',sans-serif;background:#1d3a70;color:#fff;padding:4px;text-align:center;border:1px solid #fff;font-size:17px">ยอดรับเข้า SAP</th>
+          <th style="${thStyle}">เลขที่ใบส่งของ</th>
+        </tr></thead>
+        <tbody>${dataRows}
+          <tr>
+            <td colspan="4" style="padding:6px 4px;text-align:right;font-size:17px;font-weight:700;color:#1d3a70;border-top:2px solid #1d3a70">Total Quantity :</td>
+            <td style="padding:6px 4px;text-align:right;font-size:17px;font-weight:700;color:#1d3a70;border-top:2px solid #1d3a70">${Fmt.num(totalSW)} kg</td>
+            <td style="border-top:2px solid #1d3a70"></td>
+            <td style="padding:6px 4px;text-align:right;font-size:17px;font-weight:700;color:#1d3a70;border-top:2px solid #1d3a70">${Fmt.num(totalFW)} kg</td>
+            <td style="padding:6px 4px;text-align:right;font-size:17px;font-weight:700;color:#1d3a70;border-top:2px solid #1d3a70">${Fmt.num(totalDiff)}</td>
+            <td style="padding:6px 4px;text-align:right;font-size:17px;font-weight:700;color:#0c8a7e;border-top:2px solid #1d3a70">${Fmt.num(totalSAP)} kg</td>
+            <td style="border-top:2px solid #1d3a70"></td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size:15px;color:#666">Best Regards,<br>
+        <strong style="color:#1d3a70">MATCALL User</strong><br>
+        <span style="font-size:13px;color:#888">MATCALL System (Warehouse Dept.)</span>
+      </p>
+    </td></tr>
+  </table>`;
+
+  const subject = `สรุปรายการรับเข้าวัตถุดิบ ประจำเดือน ${monthName} สำหรับโรงงาน ${plantInfo?.plant_name ?? plantCode}`;
+  const to      = plantInfo?.email_pan ?? '';
+  const ccArr   = [plantInfo?.email_plan, plantInfo?.email_rw, plantInfo?.email_pd,
+                   plantInfo?.email_manager].filter(Boolean);
+
+  document.getElementById('pan-meta-to').textContent      = to || '(กรุณาระบุ To)';
+  document.getElementById('pan-meta-cc').textContent      = ccArr.join('; ') || '-';
+  document.getElementById('pan-meta-subject').textContent = subject;
+  document.getElementById('pan-email-body').innerHTML     = emailHTML;
+
+  // Copy
+  document.getElementById('btn-copy-pan').onclick = () => {
+    const el = document.getElementById('pan-email-body');
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    document.execCommand('copy');
+    window.getSelection().removeAllRanges();
+    Toast.success('คัดลอกเนื้อหาแล้ว');
+  };
+
+  // Print
+  document.getElementById('btn-print').onclick = () => window.print();
+});
+</script>
+</body>
+</html>

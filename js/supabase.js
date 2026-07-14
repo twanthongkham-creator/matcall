@@ -1,0 +1,359 @@
+/* ============================================================
+   MATCALL - Supabase Client
+   ============================================================ */
+
+const SUPABASE_URL = "https://veasbnqtfeaaxdpvqhcz.supabase.co";
+const SUPABASE_KEY = "sb_publishable_lNHI_haN0Key4pflGRc9rw_lvMiML3Q";
+
+// Initialize Supabase client (loaded via CDN in HTML)
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ── Tables ─────────────────────────────────────────────────── */
+const TABLE = {
+  CALLOFF_PLAN:    'calloff_plan',
+  MASTER_SUPPLIER: 'master_supplier',
+  MASTER_PLANT:    'master_plant',
+  SUPPLIER_QUOTA:  'supplier_quota',
+};
+
+/* ── Generic helpers ────────────────────────────────────────── */
+const DB = {
+
+  /** Fetch all rows with optional filter object */
+  async getAll(table, filters = {}, orderBy = null) {
+    let q = _supabase.from(table).select('*');
+    for (const [col, val] of Object.entries(filters)) {
+      if (val !== null && val !== undefined && val !== '') q = q.eq(col, val);
+    }
+    if (orderBy) q = q.order(orderBy.col, { ascending: orderBy.asc ?? true });
+    const { data, error } = await q;
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  /** Fetch single row by id */
+  async getById(table, id) {
+    const { data, error } = await _supabase.from(table).select('*').eq('id', id).single();
+    if (error) throw error;
+    return data;
+  },
+
+  /** Insert one row, returns inserted row */
+  async insert(table, payload) {
+    const { data, error } = await _supabase.from(table).insert(payload).select().single();
+    if (error) throw error;
+    return data;
+  },
+
+  /** Update row by id, returns updated row */
+  async update(table, id, payload) {
+    const { data, error } = await _supabase.from(table).update(payload).eq('id', id).select().single();
+    if (error) throw error;
+    return data;
+  },
+
+  /** Delete row by id */
+  async delete(table, id) {
+    const { error } = await _supabase.from(table).delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  /** Run a complex query builder fn: fn(_supabase.from(table)) */
+  async query(table, builderFn) {
+    const { data, error } = await builderFn(_supabase.from(table).select('*'));
+    if (error) throw error;
+    return data ?? [];
+  },
+};
+
+/* ── Typed API ──────────────────────────────────────────────── */
+const API = {
+
+  /* ── Master Plant ── */
+  async getPlants() {
+    return DB.getAll(TABLE.MASTER_PLANT, { is_active: true }, { col: 'plant_code', asc: true });
+  },
+
+  async getPlantByCode(code) {
+    const { data, error } = await _supabase
+      .from(TABLE.MASTER_PLANT).select('*').eq('plant_code', code).eq('is_active', true).single();
+    if (error) throw error;
+    return data;
+  },
+
+  /* ── Master Supplier ── */
+  async getSuppliers(plantCode = null) {
+    let q = _supabase.from(TABLE.MASTER_SUPPLIER).select('*');
+    if (plantCode) q = q.eq('plant', plantCode);
+    q = q.order('supplier_name', { ascending: true });
+    const { data, error } = await q;
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  async getMaterials(plantCode = null, supplierName = null) {
+    let q = _supabase.from(TABLE.MASTER_SUPPLIER).select('material_name').order('material_name');
+    if (plantCode)    q = q.eq('plant', plantCode);
+    if (supplierName) q = q.eq('supplier_name', supplierName);
+    const { data, error } = await q;
+    if (error) throw error;
+    // distinct
+    return [...new Set((data ?? []).map(r => r.material_name))].sort();
+  },
+
+  async getSupplierByMaterial(plantCode, materialName) {
+    const { data, error } = await _supabase
+      .from(TABLE.MASTER_SUPPLIER)
+      .select('*')
+      .eq('plant', plantCode)
+      .eq('material_name', materialName);
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  /* ── Call-off Plan ── */
+  async getCalloffPlans({
+    plant = null,
+    supplierName = null,
+    materialName = null,
+    status = null,
+    mailStatus = null,
+    receiveStatus = null,
+    dateFrom = null,
+    dateTo = null,
+    fy = null,
+  } = {}) {
+    let q = _supabase.from(TABLE.CALLOFF_PLAN).select('*');
+
+    if (plant)         q = q.eq('plant', plant);
+    if (supplierName)  q = q.eq('supplier_name', supplierName);
+    if (materialName)  q = q.eq('material_name', materialName);
+    if (status)        q = q.eq('status', status);
+    if (mailStatus)    q = q.eq('mail_status', mailStatus);
+    if (receiveStatus) q = q.eq('receive_status', receiveStatus);
+
+    if (fy) {
+      // Thai fiscal year: Oct(fy-1) - Sep(fy)
+      q = q.gte('delivery_date', `${fy - 1}-10-01`).lte('delivery_date', `${fy}-09-30`);
+    }
+
+    if (dateFrom) q = q.gte('delivery_date', dateFrom);
+    if (dateTo)   q = q.lte('delivery_date', dateTo);
+
+    q = q.order('delivery_date', { ascending: true });
+
+    const { data, error } = await q;
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  async createCalloffPlan(payload) {
+    return DB.insert(TABLE.CALLOFF_PLAN, {
+      ...payload,
+      status:         payload.status        ?? 'Active',
+      mail_status:    payload.mail_status   ?? 'Pending',
+      receive_status: payload.receive_status ?? 'Pending',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+  },
+
+  async updateCalloffPlan(id, payload) {
+    return DB.update(TABLE.CALLOFF_PLAN, id, {
+      ...payload,
+      updated_at: new Date().toISOString(),
+    });
+  },
+
+  async deleteCalloffPlan(id) {
+    return DB.delete(TABLE.CALLOFF_PLAN, id);
+  },
+
+  /* Mark mail as sent */
+  async markMailSent(id) {
+    return DB.update(TABLE.CALLOFF_PLAN, id, {
+      mail_status: 'Sent',
+      updated_at: new Date().toISOString(),
+    });
+  },
+
+  /* Bulk mark mail sent */
+  async bulkMarkMailSent(ids) {
+    const { error } = await _supabase
+      .from(TABLE.CALLOFF_PLAN)
+      .update({ mail_status: 'Sent', updated_at: new Date().toISOString() })
+      .in('id', ids);
+    if (error) throw error;
+  },
+
+  /* Save goods receipt data */
+  async saveGoodsReceipt(id, receiptData) {
+    return DB.update(TABLE.CALLOFF_PLAN, id, {
+      do_number:           receiptData.do_number,
+      supplier_weight:     receiptData.supplier_weight,
+      factory_weight:      receiptData.factory_weight,
+      weight_diff:         receiptData.weight_diff,
+      sap_receive_weight:  receiptData.sap_receive_weight,
+      sap_doc_number:      receiptData.sap_doc_number,
+      actual_delivery_date: receiptData.actual_delivery_date,
+      receive_status:      receiptData.receive_status,
+      updated_at: new Date().toISOString(),
+    });
+  },
+
+  /* Dashboard: FY summary */
+  async getFYData(fy, plant = null, supplier = null, material = null) {
+    return API.getCalloffPlans({
+      fy,
+      plant:         plant    || null,
+      supplierName:  supplier || null,
+      materialName:  material || null,
+      status: 'Active',
+    });
+  },
+
+  /* ── App Users ── */
+  async getUsers() {
+    try {
+      return await DB.getAll('app_users', {}, { col: 'username', asc: true });
+    } catch (e) {
+      console.warn("Table app_users might not exist yet, falling back to local storage users list", e);
+      // Fallback list in case they haven't run migration
+      let localUsers = JSON.parse(localStorage.getItem('fallback_users') || '[]');
+      if (localUsers.length < 13 || !localUsers.some(u => u.username === '550101')) {
+        localUsers = [
+          { id: 1, username: 'admin', name: 'Super Admin', plant_code: '', role: 'Admin', password: '1234' },
+          
+          { id: 2, username: '550101', name: 'วัชระ รุ่งเรือง', plant_code: 'PT', role: 'User', password: '550101' },
+          { id: 3, username: '550102', name: 'อนันต์ ศรีสุข', plant_code: 'PT', role: 'Admin', password: '550102' },
+          
+          { id: 4, username: '550201', name: 'เกียรติศักดิ์ พูนผล', plant_code: 'KR', role: 'User', password: '550201' },
+          { id: 5, username: '550202', name: 'ณรงค์ศักดิ์ สุขใจ', plant_code: 'KR', role: 'Admin', password: '550202' },
+          
+          { id: 6, username: '550301', name: 'ประวิทย์ ขยันยิ่ง', plant_code: 'NS', role: 'User', password: '550301' },
+          { id: 7, username: '550302', name: 'สุรเดช สว่างเนตร', plant_code: 'NS', role: 'Admin', password: '550302' },
+          
+          { id: 8, username: '550401', name: 'สมศักดิ์ รักชาติ', plant_code: 'SR', role: 'User', password: '550401' },
+          { id: 9, username: '550402', name: 'ธีรยุทธ วันทองคำ', plant_code: 'SR', role: 'Admin', password: '550402' },
+          
+          { id: 10, username: '550501', name: 'ไพโรจน์ รอดภัย', plant_code: 'CH', role: 'User', password: '550501' },
+          { id: 11, username: '550502', name: 'วิชัย ดีประเสริฐ', plant_code: 'CH', role: 'Admin', password: '550502' },
+          
+          { id: 12, username: '550601', name: 'มานพ แก้วคง', plant_code: 'NP', role: 'User', password: '550601' },
+          { id: 13, username: '550602', name: 'ธนากร ใจเย็น', plant_code: 'NP', role: 'Admin', password: '550602' }
+        ];
+        localStorage.setItem('fallback_users', JSON.stringify(localUsers));
+      }
+      return localUsers;
+    }
+  },
+
+  async createUser(payload) {
+    try {
+      return await DB.insert('app_users', payload);
+    } catch (e) {
+      let localUsers = JSON.parse(localStorage.getItem('fallback_users') || '[]');
+      const newId = localUsers.length ? Math.max(...localUsers.map(u => u.id)) + 1 : 1;
+      const newUser = { id: newId, ...payload };
+      localUsers.push(newUser);
+      localStorage.setItem('fallback_users', JSON.stringify(localUsers));
+      return newUser;
+    }
+  },
+
+  async updateUser(id, payload) {
+    try {
+      return await DB.update('app_users', id, payload);
+    } catch (e) {
+      let localUsers = JSON.parse(localStorage.getItem('fallback_users') || '[]');
+      const idx = localUsers.findIndex(u => u.id == id);
+      if (idx !== -1) {
+        localUsers[idx] = { ...localUsers[idx], ...payload };
+        localStorage.setItem('fallback_users', JSON.stringify(localUsers));
+        return localUsers[idx];
+      }
+      throw e;
+    }
+  },
+
+  async deleteUser(id) {
+    try {
+      return await DB.delete('app_users', id);
+    } catch (e) {
+      let localUsers = JSON.parse(localStorage.getItem('fallback_users') || '[]');
+      localUsers = localUsers.filter(u => u.id != id);
+      localStorage.setItem('fallback_users', JSON.stringify(localUsers));
+    }
+  },
+
+  /* ── Master Plant Extensions ── */
+  async updatePlant(id, payload) {
+    return DB.update(TABLE.MASTER_PLANT, id, {
+      ...payload,
+      updated_at: new Date().toISOString()
+    });
+  },
+
+  /* ── Master Supplier Extensions ── */
+  async updateSupplier(id, payload) {
+    return DB.update(TABLE.MASTER_SUPPLIER, id, {
+      ...payload,
+      updated_at: new Date().toISOString()
+    });
+  },
+
+  async createSupplier(payload) {
+    return DB.insert(TABLE.MASTER_SUPPLIER, {
+      ...payload,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+  },
+
+  async deleteSupplier(id) {
+    return DB.delete(TABLE.MASTER_SUPPLIER, id);
+  },
+
+  /* ── Supplier Quotas ── */
+  async getQuotas(supplierId = null) {
+    let q = _supabase.from(TABLE.SUPPLIER_QUOTA).select('*');
+    if (supplierId) q = q.eq('supplier_id', supplierId);
+    q = q.order('contract_start', { ascending: false });
+    const { data, error } = await q;
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  async createQuota(payload) {
+    return DB.insert(TABLE.SUPPLIER_QUOTA, {
+      ...payload,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+  },
+
+  async updateQuota(id, payload) {
+    return DB.update(TABLE.SUPPLIER_QUOTA, id, {
+      ...payload,
+      updated_at: new Date().toISOString()
+    });
+  },
+
+  async deleteQuota(id) {
+    return DB.delete(TABLE.SUPPLIER_QUOTA, id);
+  },
+};
+
+/* ── Fiscal Year helper ─────────────────────────────────────── */
+function getCurrentFY() {
+  const m = new Date().getMonth() + 1; // 1-12
+  const y = new Date().getFullYear();
+  return m >= 10 ? y + 1 : y;
+}
+
+function getFYRange(fy) {
+  return {
+    start: `${fy - 1}-10-01`,
+    end:   `${fy}-09-30`,
+  };
+}

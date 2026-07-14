@@ -1,0 +1,22 @@
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs / Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local Server Temp Files
+.htaccess_local
+/nbproject/
+send-email.php
+*.csv
+*.zip

@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MATCALL – Preview Email Supplier</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+<div id="app-wrapper">
+
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo">
+        <div class="brand-icon"><i class="bi bi-boxes"></i></div>
+        <div class="brand-text">
+          <span class="brand-name">MATCALL</span>
+          <span class="brand-sub">CALL-OFF SYSTEM</span>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-section-label">เมนูหลัก</div>
+    <ul class="sidebar-nav">
+      <li><a class="nav-item" data-page="index.html" href="index.html"><span class="nav-icon"><i class="bi bi-house-fill"></i></span><span class="nav-label">หน้าหลัก</span></a></li>
+      <li><a class="nav-item" data-page="request.html" href="request.html"><span class="nav-icon"><i class="bi bi-file-earmark-text"></i></span><span class="nav-label">เรียกเข้าวัตถุดิบ</span></a></li>
+      <li><a class="nav-item" data-page="history.html" href="history.html"><span class="nav-icon"><i class="bi bi-clock-history"></i></span><span class="nav-label">ประวัติและสถานะ</span></a></li>
+      <li><a class="nav-item" data-page="receive.html" href="receive.html"><span class="nav-icon"><i class="bi bi-box-seam"></i></span><span class="nav-label">รับวัตถุดิบ</span></a></li>
+      <li><a class="nav-item" data-page="settings.html" href="settings.html"><span class="nav-icon"><i class="bi bi-gear-fill"></i></span><span class="nav-label">จัดการข้อมูล & สิทธิ์</span></a></li>
+    </ul>
+    <div class="sidebar-footer">
+      <div class="user-badge">
+        <div class="user-avatar">M</div>
+        <div class="user-info"><div class="user-name">MATCALL User</div><div class="user-role">Sermsuk PLC</div></div>
+      </div>
+    </div>
+  </nav>
+  <div id="sidebar-overlay"></div>
+
+  <div id="main-content">
+    <header id="topbar">
+      <button id="btn-sidebar-toggle"><i class="bi bi-list"></i></button>
+      <div class="topbar-title">
+        <div class="topbar-page-name">Preview อีเมล Supplier</div>
+        <div class="topbar-breadcrumb">MATCALL / History / Email Preview</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" onclick="history.back()"><i class="bi bi-arrow-left"></i> กลับ</button>
+        <button class="btn btn-primary" id="btn-copy-email"><i class="bi bi-clipboard"></i> คัดลอก</button>
+        <button class="btn btn-teal" id="btn-send-done"><i class="bi bi-check-circle"></i> ยืนยันส่งแล้ว</button>
+      </div>
+    </header>
+
+    <main id="page-body">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h1><i class="bi bi-envelope-fill"></i> Preview อีเมลแจ้งแผน Supplier</h1>
+          <p>ตรวจสอบอีเมลก่อนส่ง จากนั้นกด "ยืนยันส่งแล้ว"</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><i class="bi bi-envelope-fill"></i> รายละเอียดอีเมล</div>
+        <div class="card-body">
+          <div class="email-frame">
+            <div class="email-meta" id="email-meta-box">
+              <div class="email-meta-row align-items-center">
+                <span class="email-meta-label">To:</span>
+                <div class="input-group input-group-sm">
+                  <input type="text" id="meta-to" class="form-control" placeholder="ระบุอีเมลผู้รับ (To)" style="border-radius: 6px 0 0 6px;">
+                  <button class="btn btn-outline-secondary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('meta-to').value); Toast.success('คัดลอก To สำเร็จ')" style="border-color: #cbd5e1;">
+                    <i class="bi bi-clipboard"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="email-meta-row align-items-center">
+                <span class="email-meta-label">Cc:</span>
+                <div class="input-group input-group-sm">
+                  <input type="text" id="meta-cc" class="form-control" placeholder="ระบุอีเมลสำเนา (Cc)" style="border-radius: 6px 0 0 6px;">
+                  <button class="btn btn-outline-secondary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('meta-cc').value); Toast.success('คัดลอก Cc สำเร็จ')" style="border-color: #cbd5e1;">
+                    <i class="bi bi-clipboard"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="email-meta-row align-items-center">
+                <span class="email-meta-label">Subject:</span>
+                <div class="input-group input-group-sm">
+                  <input type="text" id="meta-subject" class="form-control" placeholder="หัวข้ออีเมล" style="border-radius: 6px 0 0 6px;">
+                  <button class="btn btn-outline-secondary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('meta-subject').value); Toast.success('คัดลอกหัวข้อสำเร็จ')" style="border-color: #cbd5e1;">
+                    <i class="bi bi-clipboard"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="email-body-wrap" id="email-body-html">
+              <div class="spinner-wrap"><div class="spinner"></div><span>กำลังสร้างอีเมล...</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Selected items summary -->
+      <div class="card">
+        <div class="card-header"><i class="bi bi-list-check"></i> รายการที่เลือก</div>
+        <div class="card-body" style="padding:0">
+          <div class="table-wrap">
+            <table class="table" id="preview-items-table">
+              <thead>
+                <tr>
+                  <th class="th-center">#</th>
+                  <th>วัน</th>
+                  <th>วันที่</th>
+                  <th>Tank ID</th>
+                  <th class="th-right">จำนวน</th>
+                  <th class="th-center">หน่วย</th>
+                </tr>
+              </thead>
+              <tbody id="preview-items-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- EmailJS SDK (for GitHub Pages / Static Hosting) -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/app.js"></script>
+<script>
+// -------------------------------------------------------------
+// EMAIL SENDING CONFIGURATION (For GitHub Pages / Static Hosting)
+// -------------------------------------------------------------
+// Set to 'php' to use local XAMPP php backend, or 'emailjs' to use EmailJS service
+const EMAIL_PROVIDER = 'emailjs'; // 'php' or 'emailjs'
+
+// EmailJS Credentials (Get these from https://www.emailjs.com/)
+const EMAILJS_SERVICE_ID  = 'service_ofpsdk6';
+const EMAILJS_TEMPLATE_ID = 'template_rjnzopj';
+const EMAILJS_PUBLIC_KEY  = 'gYNAX5IlLeqDebuDi';
+// -------------------------------------------------------------
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const items       = JSON.parse(sessionStorage.getItem('email_items')    || '[]');
+  const plantCode   = sessionStorage.getItem('email_plant')     ?? '';
+  const supplierName= sessionStorage.getItem('email_supplier')  ?? '';
+
+  if (!items.length) {
+    Toast.warning('ไม่พบข้อมูลอีเมล กลับไปเลือกรายการใหม่');
+    setTimeout(() => window.location.href = 'history.html', 2000);
+    return;
+  }
+
+  // Get plant info
+  let plantInfo = null;
+  try { plantInfo = await API.getPlantByCode(plantCode); } catch(e){}
+
+  // Get supplier email
+  let supplierEmail = '';
+  try {
+    const sups = await API.getSuppliers(plantCode);
+    const mat  = items[0]?.material_name ?? '';
+    const s    = sups.find(x => x.supplier_name === supplierName && x.material_name === mat);
+    supplierEmail = s?.supplier_email ?? '';
+  } catch(e){}
+
+  const material = items[0]?.material_name ?? '';
+  const isCO2    = material.includes('CO2');
+
+  // Build table rows
+  const thDays = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์'];
+  const tableRows = items.map(r => {
+    const d   = new Date(r.delivery_date);
+    const day = thDays[d.getDay()];
+    const dateStr = d.toLocaleDateString('en-GB');
+    const qty = material === 'Bioligo IH200'
+      ? `${Fmt.num(r.quantity)} IBC (${Fmt.num(r.quantity * 1350)} kg)`
+      : `${Fmt.num(r.quantity)} ${r.unit ?? 'kg'}`;
+    return `<tr>
+      <td style='text-align:center;border:1px solid #d1d9e6;padding:4px 6px;font-size:15px'>${day}</td>
+      <td style='text-align:center;border:1px solid #d1d9e6;padding:4px 6px;font-size:15px'>${dateStr}</td>
+      ${isCO2 ? `<td style='text-align:center;border:1px solid #d1d9e6;padding:4px 6px;font-size:15px;color:#1d3a70;font-weight:700'>${r.tank_id ?? '-'}</td>` : ''}
+      <td style='text-align:center;border:1px solid #d1d9e6;padding:4px 6px;font-size:15px;color:#0c8a7e;font-weight:700'>${qty}</td>
+    </tr>`;
+  }).join('');
+
+  const totalQty = items.reduce((s, r) => s + (r.quantity ?? 0), 0);
+  const totalDisplay = material === 'Bioligo IH200'
+    ? `${Fmt.num(totalQty)} IBC (${Fmt.num(totalQty * 1350)} kg)`
+    : `${Fmt.num(totalQty)} ${items[0]?.unit ?? 'kg'}`;
+
+  const colSpan = isCO2 ? 3 : 2;
+  const headerCols = `<th style='padding:4px;border:1px solid #fff;background:#1d3a70;color:#fff;font-size:17px'>Day</th>
+    <th style='padding:4px;border:1px solid #fff;background:#1d3a70;color:#fff;font-size:17px'>Date</th>
+    ${isCO2 ? "<th style='padding:4px;border:1px solid #fff;background:#1d3a70;color:#fff;font-size:17px'>Tank ID</th>" : ''}
+    <th style='padding:4px;border:1px solid #fff;background:#1d3a70;color:#fff;font-size:17px'>Quantity</th>`;
+
+  const firstDate = new Date(items[0].delivery_date);
+  const monthTH   = firstDate.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+
+  const emailHTML = `
+  <table width="650" style="width:100%;max-width:650px;font-family:'Browallia New',sans-serif;border:1px solid #eef2f6;border-radius:8px;background:#fff">
+    <tr><td style="padding:15px 20px">
+      <h2 style="color:#1d3a70;border-bottom:2px solid #0c8a7e;font-size:20px">แจ้งแผนการเรียกเข้าวัตถุดิบ (Material Call-off)</h2>
+      <p style="font-size:17px">เรียน ทีมงาน <b>${supplierName}</b><br><br>
+        ขอแจ้งแผนการเรียกเข้า <b style="color:#0c8a7e">${material}</b> สำหรับโรงงาน <b>${plantInfo?.plant_name ?? plantCode}</b>
+        ใน<b>${monthTH}</b> ครับ
+      </p>
+      <table width="100%" style="border-collapse:collapse;text-align:center">
+        <thead><tr>${headerCols}</tr></thead>
+        <tbody>${tableRows}
+          <tr>
+            <td colspan="${colSpan}" style="border-top:2px solid #1d3a70;padding:6px 4px;text-align:center;font-size:17px;font-weight:700;color:#1d3a70">Total Quantity :</td>
+            <td style="border-top:2px solid #1d3a70;padding:6px 4px;text-align:center;font-size:17px;font-weight:700;color:#1d3a70">${totalDisplay}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size:16px;color:#666;margin-top:16px">Thank You & Best Regards,<br><strong style="color:#1d3a70">MATCALL User</strong></p>
+    </td></tr>
+  </table>`;
+
+  // WK number
+  const wk = Fmt.weekNum(items[0].delivery_date);
+  const subject = `แจ้งแผนการเรียกเข้า ${material} โรงงาน ${plantInfo?.plant_name ?? plantCode} (WK${wk})`;
+
+  const ccArr = [plantInfo?.email_pan, plantInfo?.email_plan, plantInfo?.email_rw,
+                 plantInfo?.email_pd, plantInfo?.email_manager].filter(Boolean);
+
+  // Render
+  document.getElementById('meta-to').value      = supplierEmail || '';
+  document.getElementById('meta-cc').value      = ccArr.join('; ') || '';
+  document.getElementById('meta-subject').value = subject;
+  document.getElementById('email-body-html').innerHTML = emailHTML;
+
+  // Preview items table
+  const tbody = document.getElementById('preview-items-body');
+  tbody.innerHTML = items.map((r, i) => {
+    const d = new Date(r.delivery_date);
+    return `<tr>
+      <td class="td-center">${i+1}</td>
+      <td>${thDays[d.getDay()]}</td>
+      <td>${Fmt.date(r.delivery_date)}</td>
+      <td class="td-center">${r.tank_id ?? '-'}</td>
+      <td class="td-right">${Fmt.num(r.quantity)}</td>
+      <td class="td-center">${r.unit ?? 'kg'}</td>
+    </tr>`;
+  }).join('');
+
+  // Copy button
+  document.getElementById('btn-copy-email').onclick = () => {
+    const el = document.getElementById('email-body-html');
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    document.execCommand('copy');
+    window.getSelection().removeAllRanges();
+    Toast.success('คัดลอกเนื้อหาอีเมลแล้ว');
+  };
+
+  // Confirm sent
+  document.getElementById('btn-send-done').onclick = () => {
+    Modal.confirm(
+      'ยืนยันการส่งอีเมล',
+      `คุณต้องการส่งอีเมลแจ้งแผนนี้ไปยัง ${supplierName} และบันทึกสถานะการส่ง (Sent) ในระบบหรือไม่?`,
+      async () => {
+        // Show loading indicator
+        const btn = document.getElementById('btn-send-done');
+        const origText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> กำลังส่ง...`;
+        
+        try {
+          const toVal = document.getElementById('meta-to').value;
+          const ccVal = document.getElementById('meta-cc').value;
+          const subjectVal = document.getElementById('meta-subject').value;
+          const bodyVal = document.getElementById('email-body-html').innerHTML;
+
+          if (EMAIL_PROVIDER === 'emailjs') {
+            // Log payload for debugging
+            console.log("=== EmailJS Payload Debug ===");
+            console.log("To:", toVal);
+            console.log("Cc:", ccVal);
+            console.log("Subject:", subjectVal);
+            console.log("Body length:", bodyVal.length);
+            console.log("Body preview:", bodyVal.substring(0, 100));
+            
+            // Initialize EmailJS
+            emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+            
+            // Send email via EmailJS (requires to_email, cc_email, subject, email_body variables in template)
+            await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+              to_email: toVal,
+              cc_email: ccVal,
+              subject: subjectVal,
+              email_body: bodyVal
+            });
+          } else {
+            // Call backend sending script (PHP)
+            const response = await fetch('send-email.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: toVal,
+                cc: ccVal,
+                subject: subjectVal,
+                body: bodyVal
+              })
+            });
+            
+            const result = await response.json();
+            if (!result.success) {
+              throw new Error(result.message);
+            }
+          }
+
+          const ids = items.map(r => r.id);
+          await API.bulkMarkMailSent(ids);
+          Toast.success('ส่งอีเมลและบันทึกสถานะ Sent สำเร็จ');
+          setTimeout(() => window.location.href = 'history.html', 1500);
+        } catch(e) { 
+          Toast.error('ส่งเมล/บันทึกไม่สำเร็จ: ' + e.message); 
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = origText;
+        }
+      },
+      'warning'
+    );
+  };
+});
+</script>
+</body>
+</html>

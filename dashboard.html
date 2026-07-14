@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="0; url=index.html">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MATCALL – Dashboard</title>
+  <link rel="canonical" href="index.html">
+</head>
+<body>
+  <!--
+    NOTE (bugfix): This page used to duplicate the dashboard UI that now
+    lives in index.html, but with a stale set of element IDs
+    (e.g. missing #sel-dash-month, and text inputs #inp-dash-supplier /
+    #inp-dash-material instead of the #sel-dash-supplier / #sel-dash-material
+    dropdowns that js/dashboard.js actually expects). Because
+    filterAndRenderDashboard() returns early when #sel-dash-month is not
+    found, this page never rendered any KPIs or charts, and clicking
+    "reset" threw a JS error. No page in the app links to dashboard.html
+    anymore (the sidebar's "หน้าหลัก" already points to index.html), so
+    this file now just redirects to index.html to avoid a broken, dead
+    page while keeping the URL alive for anyone with it bookmarked.
+  -->
+  <p>กำลังนำคุณไปยังหน้า Dashboard... หากไม่เปลี่ยนหน้าอัตโนมัติ <a href="index.html">คลิกที่นี่</a></p>
+  <script>window.location.replace('index.html');</script>
+</body>
+</html>

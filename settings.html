@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MATCALL – จัดการข้อมูล & สิทธิ์</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231d3a70'/></svg>">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <style>
+    .nav-tabs {
+      border: none !important;
+      background: #e2e8f0;
+      border-radius: 10px;
+      padding: 4px;
+      display: flex;
+      flex-direction: row;
+      width: 100%;
+      max-width: 600px;
+      margin: 0 auto 24px;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .nav-tabs .nav-item {
+      flex: 1;
+      text-align: center;
+      display: flex;
+    }
+    .nav-tabs .nav-link {
+      border: none !important;
+      color: var(--text-secondary);
+      font-weight: 600;
+      padding: 8px 10px;
+      font-size: 13px;
+      transition: all 0.2s ease;
+      background: transparent !important;
+      border-bottom: none !important;
+      margin: 0 !important;
+      width: 100%;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .nav-tabs .nav-link:hover {
+      color: var(--primary);
+    }
+    .nav-tabs .nav-link.active {
+      color: var(--teal) !important;
+      background: #ffffff !important;
+      font-weight: 700;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      border-bottom: none !important;
+    }
+    .table-input {
+      font-size: 13px;
+      padding: 4px 8px;
+    }
+    @media (max-width: 576px) {
+      .nav-tabs {
+        margin-bottom: 16px;
+      }
+      .nav-tabs .nav-link {
+        font-size: 11px;
+        padding: 6px 2px;
+        gap: 3px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div id="app-wrapper">
+
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo">
+        <div class="brand-icon"><i class="bi bi-boxes"></i></div>
+        <div class="brand-text">
+          <span class="brand-name">MATCALL</span>
+          <span class="brand-sub">CALL-OFF SYSTEM</span>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-section-label">เมนูหลัก</div>
+    <ul class="sidebar-nav">
+      <li><a class="nav-item" data-page="index.html" href="index.html"><span class="nav-icon"><i class="bi bi-house-fill"></i></span><span class="nav-label">หน้าหลัก</span></a></li>
+      <li><a class="nav-item" data-page="request.html" href="request.html"><span class="nav-icon"><i class="bi bi-file-earmark-text"></i></span><span class="nav-label">เรียกเข้าวัตถุดิบ</span></a></li>
+      <li><a class="nav-item" data-page="history.html" href="history.html"><span class="nav-icon"><i class="bi bi-clock-history"></i></span><span class="nav-label">ประวัติและสถานะ</span></a></li>
+      <li><a class="nav-item" data-page="receive.html" href="receive.html"><span class="nav-icon"><i class="bi bi-box-seam"></i></span><span class="nav-label">รับวัตถุดิบ</span></a></li>
+      <li><a class="nav-item active" data-page="settings.html" href="settings.html"><span class="nav-icon"><i class="bi bi-gear-fill"></i></span><span class="nav-label">จัดการข้อมูล & สิทธิ์</span></a></li>
+    </ul>
+    <div class="sidebar-footer">
+      <div class="user-badge">
+        <div class="user-avatar">M</div>
+        <div class="user-info"><div class="user-name">MATCALL User</div><div class="user-role">Sermsuk PLC</div></div>
+      </div>
+    </div>
+  </nav>
+  <div id="sidebar-overlay"></div>
+
+  <div id="main-content">
+    <header id="topbar">
+      <button id="btn-sidebar-toggle"><i class="bi bi-list"></i></button>
+      <div class="topbar-title">
+        <div class="topbar-page-name">จัดการข้อมูล & สิทธิ์</div>
+        <div class="topbar-breadcrumb">MATCALL / Settings</div>
+      </div>
+    </header>
+
+    <main id="page-body">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h1><i class="bi bi-gear-fill"></i> ตั้งค่าข้อมูลหลักระบบ</h1>
+          <p>จัดการรายชื่ออีเมลผู้รับภายในโรงงาน, ข้อมูลผู้จัดส่ง (Supplier) และสิทธิ์การเข้าใช้งานระบบ</p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <ul class="nav nav-tabs" id="settingsTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="plant-tab" data-bs-toggle="tab" data-bs-target="#plant-panel" type="button" role="tab">
+            <i class="bi bi-building"></i> อีเมลภายในโรงงาน
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="supplier-tab" data-bs-toggle="tab" data-bs-target="#supplier-panel" type="button" role="tab">
+            <i class="bi bi-truck"></i> อีเมล Supplier
+          </button>
+        </li>
+        <li class="nav-item" role="presentation" id="users-tab-li">
+          <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users-panel" type="button" role="tab">
+            <i class="bi bi-people-fill"></i> สิทธิ์และผู้ใช้งาน (Admin)
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content" id="settingsTabsContent">
+        
+        <!-- Tab 1: Plant Emails -->
+        <div class="tab-pane fade show active" id="plant-panel" role="tabpanel">
+          <div class="card">
+            <div class="card-header"><i class="bi bi-envelope-at-fill"></i> อีเมลผู้รับภายในแต่ละโรงงาน (คั่นข้อมูลด้วยเครื่องหมาย semicolon `;`)</div>
+            <div class="card-body" style="padding:0">
+              <div class="table-wrap">
+                <table class="table" style="vertical-align: middle;">
+                  <thead>
+                    <tr>
+                      <th width="120">โรงงาน</th>
+                      <th>PAN Emails</th>
+                      <th>Planning Emails</th>
+                      <th>Warehouse (RW) Emails</th>
+                      <th>PD Emails</th>
+                      <th>Manager Emails</th>
+                      <th width="120" class="th-center">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="plant-table-body">
+                    <!-- Loaded dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Supplier Emails -->
+        <div class="tab-pane fade" id="supplier-panel" role="tabpanel">
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-truck"></i> อีเมลผู้รับ Supplier ภายนอก และ Quota</span>
+              <button class="btn btn-primary btn-sm" id="btn-add-supplier"><i class="bi bi-plus-circle"></i> เพิ่ม Supplier</button>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div class="table-wrap">
+                <table class="table" style="vertical-align: middle;">
+                  <thead>
+                    <tr>
+                      <th width="80" class="th-center">โรงงาน</th>
+                      <th>วัตถุดิบ</th>
+                      <th>Supplier Name</th>
+                      <th>Supplier Email (คั่นด้วย `;`)</th>
+                      <th>สัญญาหมดอายุ</th>
+                      <th class="th-right">โควต้า (%)</th>
+                      <th class="th-right">โควต้ารวม (kg)</th>
+                      <th width="120" class="th-center">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="supplier-table-body">
+                    <!-- Loaded dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: App Users (Admin Only) -->
+        <div class="tab-pane fade" id="users-panel" role="tabpanel">
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-person-badge-fill"></i> ผู้ใช้งานระบบ MATCALL</span>
+              <button class="btn btn-primary btn-sm" id="btn-add-user"><i class="bi bi-person-plus-fill"></i> เพิ่มผู้ใช้งาน</button>
+            </div>
+            <div class="card-body" style="padding:0">
+              <!-- Filter & Search Bar (Visible for Super Admin only) -->
+              <div id="users-filter-bar" class="p-3 bg-light border-bottom d-flex gap-2 align-items-center" style="display: none !important;">
+                <div class="input-group input-group-sm" style="max-width: 250px;">
+                  <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                  <input type="text" id="search-user" class="form-control" placeholder="ค้นหาชื่อ หรือรหัสพนักงาน...">
+                </div>
+                <select id="filter-user-plant" class="form-select form-select-sm" style="max-width: 200px;">
+                  <option value="">ทุกโรงงาน (All Plants)</option>
+                  <option value="PT">PT (ปทุมธานี)</option>
+                  <option value="KR">KR (นครราชสีมา)</option>
+                  <option value="NS">NS (นครสวรรค์)</option>
+                  <option value="SR">SR (สุราษฎร์ธานี)</option>
+                  <option value="CH">CH (ชลบุรี)</option>
+                  <option value="NP">NP (นครปฐม)</option>
+                  <option value="CENTRAL">ส่วนกลาง (Central)</option>
+                </select>
+              </div>
+              <div class="table-wrap">
+                <table class="table" style="vertical-align: middle;">
+                  <thead>
+                    <tr>
+                      <th>Username</th>
+                      <th>ชื่อ-นามสกุล</th>
+                      <th>การจำกัดโรงงาน</th>
+                      <th>บทบาท (Role)</th>
+                      <th width="120" class="th-center">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="users-table-body">
+                    <!-- Loaded dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Add/Edit Supplier Modal -->
+<div id="supplier-modal" class="modal-backdrop" style="display:none">
+  <div class="modal-box" style="max-width:500px">
+    <div class="modal-header">
+      <span class="modal-title" id="supplier-modal-title">จัดการข้อมูล Supplier</span>
+      <button class="modal-close" onclick="Modal.hide('supplier-modal')">✕</button>
+    </div>
+    <form id="supplier-form">
+      <input type="hidden" id="supplier-id">
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">โรงงาน *</label>
+          <select id="sup-plant" class="form-select form-select-sm" required></select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">วัตถุดิบ *</label>
+          <select id="sup-material" class="form-select form-select-sm" required>
+            <option value="CO2">CO2</option>
+            <option value="HFS42%">HFS42%</option>
+            <option value="Liquid Sugar">Liquid Sugar</option>
+            <option value="Bioligo IH200">Bioligo IH200</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">ชื่อ Supplier *</label>
+          <input type="text" id="sup-name" class="form-control form-control-sm" required placeholder="เช่น บจก. ลินเด้">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">อีเมลติดต่อ (คั่นด้วยเครื่องหมาย semicolon `;` )</label>
+          <input type="text" id="sup-email" class="form-control form-control-sm" placeholder="email1@test.com; email2@test.com">
+        </div>
+        <!-- Initial Quota Section for new supplier -->
+        <div id="initial-quota-section">
+          <div class="row">
+            <div class="col-6 mb-3">
+              <label class="form-label">สัญญาเริ่ม</label>
+              <input type="date" id="sup-start" class="form-control form-control-sm">
+            </div>
+            <div class="col-6 mb-3">
+              <label class="form-label">สัญญาหมดอายุ</label>
+              <input type="date" id="sup-end" class="form-control form-control-sm">
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-6 mb-3">
+              <label class="form-label">โควต้า (%)</label>
+              <input type="number" id="sup-quota-pct" class="form-control form-control-sm" min="0" max="100" step="0.1">
+            </div>
+            <div class="col-6 mb-3">
+              <label class="form-label">โควต้ารวม (kg)</label>
+              <input type="number" id="sup-quota-total" class="form-control form-control-sm" min="0">
+            </div>
+          </div>
+        </div>
+
+        <!-- Quota History Section for editing existing supplier -->
+        <div id="quota-history-section" style="display:none; margin-top:20px; border-top:1px solid #e2e8f0; padding-top:15px;">
+          <label class="form-label fw-bold text-navy mb-2"><i class="bi bi-calendar3"></i> ประวัติและรอบสัญญาโควต้า</label>
+          <div class="table-responsive mb-3" style="max-height: 200px; overflow-y: auto;">
+            <table class="table table-sm" style="font-size: 11px; vertical-align: middle;">
+              <thead>
+                <tr>
+                  <th>เริ่มสัญญา</th>
+                  <th>สิ้นสุดสัญญา</th>
+                  <th class="text-end">โควต้า (%)</th>
+                  <th class="text-end">โควต้ารวม (kg)</th>
+                  <th width="50" class="text-center">ลบ</th>
+                </tr>
+              </thead>
+              <tbody id="quota-history-table-body">
+                <!-- Dynamic -->
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card p-2 bg-light" style="font-size: 11px; border: 1px solid #e2e8f0;">
+            <div class="fw-semibold text-navy mb-2" style="font-size: 11px;">เพิ่มรอบสัญญาโควต้าใหม่</div>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label m-0" style="font-size: 10px;">สัญญาเริ่ม</label>
+                <input type="date" id="new-quota-start" class="form-control form-control-xs" style="padding: 2px 5px; font-size: 11px;">
+              </div>
+              <div class="col-6">
+                <label class="form-label m-0" style="font-size: 10px;">สัญญาหมดอายุ</label>
+                <input type="date" id="new-quota-end" class="form-control form-control-xs" style="padding: 2px 5px; font-size: 11px;">
+              </div>
+              <div class="col-6">
+                <label class="form-label m-0" style="font-size: 10px;">โควต้า (%)</label>
+                <input type="number" id="new-quota-pct" class="form-control form-control-xs" min="0" max="100" step="0.1" style="padding: 2px 5px; font-size: 11px;">
+              </div>
+              <div class="col-6">
+                <label class="form-label m-0" style="font-size: 10px;">โควต้ารวม (kg)</label>
+                <input type="number" id="new-quota-total" class="form-control form-control-xs" min="0" style="padding: 2px 5px; font-size: 11px;">
+              </div>
+              <div class="col-12 text-end mt-2">
+                <button type="button" class="btn btn-sm btn-success" id="btn-add-quota-period" style="font-size: 11px; padding: 2px 10px;">+ เพิ่มรอบสัญญา</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="Modal.hide('supplier-modal')">ยกเลิก</button>
+        <button type="submit" class="btn btn-primary">บันทึกข้อมูล</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add/Edit Plant Modal -->
+<div id="plant-modal" class="modal-backdrop" style="display:none">
+  <div class="modal-box" style="max-width:500px">
+    <div class="modal-header">
+      <span class="modal-title" id="plant-modal-title">จัดการข้อมูลอีเมลโรงงาน</span>
+      <button class="modal-close" onclick="Modal.hide('plant-modal')">✕</button>
+    </div>
+    <form id="plant-form">
+      <input type="hidden" id="plant-id">
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">โรงงาน *</label>
+          <input type="text" id="plt-code" class="form-control form-control-sm" readonly>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">ชื่อโรงงาน</label>
+          <input type="text" id="plt-name" class="form-control form-control-sm" readonly>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">PAN Emails (คั่นด้วย `;` )</label>
+          <input type="text" id="plt-email-pan" class="form-control form-control-sm" placeholder="email1@test.com; email2@test.com">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Planning Emails (คั่นด้วย `;` )</label>
+          <input type="text" id="plt-email-plan" class="form-control form-control-sm" placeholder="email1@test.com; email2@test.com">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Warehouse (RW) Emails (คั่นด้วย `;` )</label>
+          <input type="text" id="plt-email-rw" class="form-control form-control-sm" placeholder="email1@test.com; email2@test.com">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">PD Emails (คั่นด้วย `;` )</label>
+          <input type="text" id="plt-email-pd" class="form-control form-control-sm" placeholder="email1@test.com; email2@test.com">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Manager Emails (คั่นด้วย `;` )</label>
+          <input type="text" id="plt-email-manager" class="form-control form-control-sm" placeholder="email1@test.com; email2@test.com">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="Modal.hide('plant-modal')">ยกเลิก</button>
+        <button type="submit" class="btn btn-primary">บันทึกข้อมูล</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add/Edit User Modal -->
+<div id="user-modal" class="modal-backdrop" style="display:none">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-header">
+      <span class="modal-title" id="user-modal-title">จัดการข้อมูลผู้ใช้งาน</span>
+      <button class="modal-close" onclick="Modal.hide('user-modal')">✕</button>
+    </div>
+    <form id="user-form">
+      <input type="hidden" id="user-id">
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Username *</label>
+          <input type="text" id="usr-username" class="form-control form-control-sm" required placeholder="เช่น user_pt">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">ชื่อ-นามสกุล *</label>
+          <input type="text" id="usr-name" class="form-control form-control-sm" required placeholder="เช่น สมชาย ใจดี">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">บทบาท (Role) *</label>
+          <select id="usr-role" class="form-select form-select-sm" required>
+            <option value="User">User (เข้าใช้รายโรงงาน)</option>
+            <option value="Admin">Admin (เข้าได้ทุกส่วนงาน)</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">รหัสผ่านสำหรับเข้าใช้งาน *</label>
+          <input type="text" id="usr-password" class="form-control form-control-sm" required placeholder="เช่น 1234" value="5678">
+        </div>
+        <div class="mb-3" id="usr-plant-div">
+          <label class="form-label">โรงงานที่จำกัดสิทธิ์</label>
+          <select id="usr-plant" class="form-select form-select-sm"></select>
+          <small class="text-muted">สำหรับสิทธิ์ User เท่านั้น (Admin จะเข้าถึงได้ทุกโรงงานอัตโนมัติ)</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="Modal.hide('user-modal')">ยกเลิก</button>
+        <button type="submit" class="btn btn-primary">บันทึกข้อมูล</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase.js"></script>
+<script src="js/app.js"></script>
+<script src="js/settings.js"></script>
+</body>
+</html>

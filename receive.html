@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MATCALL – รับวัตถุดิบ</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230c8a7e'/></svg>">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+</head>
+<body>
+<div id="app-wrapper">
+
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo">
+        <div class="brand-icon"><i class="bi bi-boxes"></i></div>
+        <div class="brand-text">
+          <span class="brand-name">MATCALL</span>
+          <span class="brand-sub">CALL-OFF SYSTEM</span>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-section-label">เมนูหลัก</div>
+    <ul class="sidebar-nav">
+      <li><a class="nav-item" data-page="index.html" href="index.html"><span class="nav-icon"><i class="bi bi-house-fill"></i></span><span class="nav-label">หน้าหลัก</span></a></li>
+      <li><a class="nav-item" data-page="request.html" href="request.html"><span class="nav-icon"><i class="bi bi-file-earmark-text"></i></span><span class="nav-label">เรียกเข้าวัตถุดิบ</span></a></li>
+      <li><a class="nav-item" data-page="history.html" href="history.html"><span class="nav-icon"><i class="bi bi-clock-history"></i></span><span class="nav-label">ประวัติและสถานะ</span></a></li>
+      <li><a class="nav-item active" data-page="receive.html" href="receive.html"><span class="nav-icon"><i class="bi bi-box-seam"></i></span><span class="nav-label">รับวัตถุดิบ</span></a></li>
+      <li><a class="nav-item" data-page="settings.html" href="settings.html"><span class="nav-icon"><i class="bi bi-gear-fill"></i></span><span class="nav-label">จัดการข้อมูล & สิทธิ์</span></a></li>
+    </ul>
+    <div class="sidebar-footer">
+      <div class="user-badge">
+        <div class="user-avatar">M</div>
+        <div class="user-info"><div class="user-name">MATCALL User</div><div class="user-role">Sermsuk PLC</div></div>
+      </div>
+    </div>
+  </nav>
+  <div id="sidebar-overlay"></div>
+
+  <!-- Main -->
+  <div id="main-content">
+    <header id="topbar">
+      <button id="btn-sidebar-toggle"><i class="bi bi-list"></i></button>
+      <div class="topbar-title">
+        <div class="topbar-page-name">รับวัตถุดิบ</div>
+        <div class="topbar-breadcrumb">MATCALL / Goods Receipt</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-outline-teal" id="btn-monthly-email">
+          <i class="bi bi-envelope-paper"></i> <span>สรุปรายเดือน</span>
+        </button>
+      </div>
+    </header>
+
+    <main id="page-body">
+
+      <div class="page-header">
+        <div class="page-header-left">
+          <h1><i class="bi bi-box-seam"></i> บันทึกรับเข้าวัตถุดิบ</h1>
+          <p>บันทึกข้อมูลการชั่งน้ำหนักและ Goods Receipt (GR)</p>
+        </div>
+      </div>
+
+      <!-- Stats Row -->
+      <div class="stat-grid" style="margin-bottom:16px">
+        <div class="stat-card">
+          <div class="stat-label">รายการทั้งหมด</div>
+          <div class="stat-value" id="rcv-stat-total">–</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">รับเข้าแล้ว</div>
+          <div class="stat-value" id="rcv-stat-received" style="color:var(--teal)">–</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">รอรับ</div>
+          <div class="stat-value" id="rcv-stat-pending" style="color:#d97706">–</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">SAP Completed</div>
+          <div class="stat-value" id="rcv-stat-sap" style="color:#7c3aed">–</div>
+        </div>
+      </div>
+
+      <!-- Filter -->
+      <form id="form-rcv-filter">
+        <div class="filter-bar">
+          <div class="filter-group">
+            <label class="filter-label">โรงงาน</label>
+            <select class="form-control" id="sel-rcv-filter-plant" style="min-width:130px">
+              <option value="">ทั้งหมด</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">เดือน</label>
+            <select class="form-control" id="sel-rcv-month" style="min-width:130px">
+              <option value="all">ทุกเดือน</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">Receive Status</label>
+            <select class="form-control" id="sel-rcv-status">
+              <option value="">ทั้งหมด</option>
+              <option value="Pending">Pending</option>
+              <option value="Received">Received</option>
+              <option value="SAP Completed">SAP Completed</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">ค้นหา</label>
+            <div class="search-box">
+              <i class="bi bi-search search-icon"></i>
+              <input type="text" class="form-control" id="inp-rcv-search" placeholder="วัตถุดิบ, Supplier, DO..." style="min-width:160px">
+            </div>
+          </div>
+          <div class="filter-group" style="justify-content:flex-end">
+            <label class="filter-label">&nbsp;</label>
+            <div style="display:flex;gap:6px">
+              <button type="button" class="btn btn-primary" id="btn-rcv-filter"><i class="bi bi-funnel"></i> กรอง</button>
+              <button type="reset"  class="btn btn-ghost"   id="btn-rcv-reset"><i class="bi bi-arrow-counterclockwise"></i></button>
+            </div>
+          </div>
+        </div>
+      </form>
+
+      <!-- Table -->
+      <div class="card">
+        <div class="card-header">
+          <i class="bi bi-box-seam"></i> รายการรับวัตถุดิบ
+          <span class="row-count ms-auto">แสดง <strong id="rcv-row-count">0</strong> รายการ</span>
+        </div>
+        <div class="card-body" style="padding:0">
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th class="th-center">#</th>
+                  <th>วันส่งมอบ</th>
+                  <th>โรงงาน</th>
+                  <th>วัตถุดิบ</th>
+                  <th>Supplier</th>
+                  <th class="th-right">แผน (Qty)</th>
+                  <th class="th-right">ยอดผู้ผลิต</th>
+                  <th class="th-right">ยอดโรงงาน</th>
+                  <th class="th-right">ส่วนต่าง</th>
+                  <th class="th-right">ยอด SAP</th>
+                  <th class="th-center">สถานะ</th>
+                  <th class="th-center">บันทึก</th>
+                </tr>
+              </thead>
+              <tbody id="rcv-table-body">
+                <tr><td colspan="12"><div class="spinner-wrap"><div class="spinner"></div><span>กำลังโหลด...</span></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- Pagination -->
+          <div id="rcv-pagination" class="pagination" style="padding: 12px; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; gap: 8px;"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Modal: Receive Form -->
+<div id="modal-receive-form" class="modal-backdrop" style="display:none">
+  <div class="modal-box" style="max-width:560px">
+    <div class="modal-header">
+      <span class="modal-title"><i class="bi bi-pencil-square"></i> บันทึกรับวัตถุดิบ</span>
+      <button class="modal-close" onclick="Modal.hide('modal-receive-form')">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Read-only info -->
+      <div style="background:#f8fafc;border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><span style="color:var(--text-muted);font-weight:600">วันส่งมอบ:</span> <span id="rcv-info-date">-</span></div>
+          <div><span style="color:var(--text-muted);font-weight:600">โรงงาน:</span> <span id="rcv-info-plant">-</span></div>
+          <div><span style="color:var(--text-muted);font-weight:600">วัตถุดิบ:</span> <span id="rcv-info-material">-</span></div>
+          <div><span style="color:var(--text-muted);font-weight:600">Supplier:</span> <span id="rcv-info-supplier">-</span></div>
+          <div><span style="color:var(--text-muted);font-weight:600">แผน (Qty):</span> <strong id="rcv-info-qty">-</strong></div>
+        </div>
+      </div>
+
+      <form id="form-receive" novalidate>
+        <div class="form-grid-2" style="margin-bottom:14px">
+          <div class="form-group">
+            <label class="form-label">เลขที่ใบส่งของ (DO)</label>
+            <input type="text" class="form-control" id="inp-rcv-do" placeholder="DO-XXXXXXXX">
+          </div>
+          <div class="form-group">
+            <label class="form-label">วันที่รับจริง</label>
+            <input type="date" class="form-control" id="inp-rcv-actual-date">
+          </div>
+        </div>
+
+        <div class="form-section-title">ข้อมูลการชั่งน้ำหนัก</div>
+        <div class="form-grid-3" style="margin-bottom:14px">
+          <div class="form-group">
+            <label class="form-label">น้ำหนักจากผู้ผลิต (kg)</label>
+            <input type="number" class="form-control" id="inp-rcv-supplier-w" step="0.01" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">น้ำหนักการชั่ง (เสริมสุข) (kg)</label>
+            <input type="number" class="form-control" id="inp-rcv-factory-w" step="0.01" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">ส่วนต่างน้ำหนัก (kg)</label>
+            <input type="number" class="form-control" id="inp-rcv-weight-diff" readonly placeholder="0"
+                   style="background:#f8fafc; font-weight: bold;">
+          </div>
+        </div>
+
+        <div class="form-section-title">ข้อมูล SAP</div>
+        <div class="form-grid-2" style="margin-bottom:14px">
+          <div class="form-group">
+            <label class="form-label">น้ำหนักที่ต้องรับจริง (kg)</label>
+            <input type="number" class="form-control" id="inp-rcv-sap-w" step="0.01" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">เลขที่เอกสาร SAP</label>
+            <input type="text" class="form-control" id="inp-rcv-sap-doc" placeholder="SAP-XXXXXXXXXX">
+          </div>
+        </div>
+        <div class="form-grid-2" style="margin-bottom:14px">
+          <div class="form-group">
+            <label class="form-label required">สถานะการรับ</label>
+            <select class="form-control" id="sel-rcv-rcv-status" required>
+              <option value="Pending">Pending</option>
+              <option value="Received">Received</option>
+              <option value="SAP Completed">SAP Completed</option>
+            </select>
+          </div>
+          <div class="form-group">
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Modal.hide('modal-receive-form')">ยกเลิก</button>
+      <button class="btn btn-teal" id="btn-rcv-submit" form="form-receive" type="submit">
+        <i class="bi bi-check-lg"></i> บันทึก
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="js/app.js"></script>
+<script src="js/receive.js"></script>
+</body>
+</html>

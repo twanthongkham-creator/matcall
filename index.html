@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MATCALL – หน้าหลัก (Dashboard)</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231d3a70'/></svg>">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+<div id="app-wrapper">
+
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo">
+        <div class="brand-icon"><i class="bi bi-boxes"></i></div>
+        <div class="brand-text">
+          <span class="brand-name">MATCALL</span>
+          <span class="brand-sub">CALL-OFF SYSTEM</span>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-section-label">เมนูหลัก</div>
+    <ul class="sidebar-nav">
+      <li><a class="nav-item active" data-page="index.html" href="index.html"><span class="nav-icon"><i class="bi bi-house-fill"></i></span><span class="nav-label">หน้าหลัก</span></a></li>
+      <li><a class="nav-item" data-page="request.html" href="request.html"><span class="nav-icon"><i class="bi bi-file-earmark-text"></i></span><span class="nav-label">เรียกเข้าวัตถุดิบ</span></a></li>
+      <li><a class="nav-item" data-page="history.html" href="history.html"><span class="nav-icon"><i class="bi bi-clock-history"></i></span><span class="nav-label">ประวัติและสถานะ</span></a></li>
+      <li><a class="nav-item" data-page="receive.html" href="receive.html"><span class="nav-icon"><i class="bi bi-box-seam"></i></span><span class="nav-label">รับวัตถุดิบ</span></a></li>
+      <li><a class="nav-item" data-page="settings.html" href="settings.html"><span class="nav-icon"><i class="bi bi-gear-fill"></i></span><span class="nav-label">จัดการข้อมูล & สิทธิ์</span></a></li>
+    </ul>
+    <div class="sidebar-footer">
+      <div class="user-badge">
+        <div class="user-avatar">M</div>
+        <div class="user-info"><div class="user-name">MATCALL User</div><div class="user-role">Sermsuk PLC</div></div>
+      </div>
+    </div>
+  </nav>
+  <div id="sidebar-overlay"></div>
+
+  <!-- Main Content -->
+  <div id="main-content">
+    <header id="topbar">
+      <button id="btn-sidebar-toggle"><i class="bi bi-list"></i></button>
+      <div class="topbar-title">
+        <div class="topbar-page-name">หน้าหลัก (Dashboard)</div>
+        <div class="topbar-breadcrumb">MATCALL / Home</div>
+      </div>
+      <div class="topbar-actions">
+        <span id="dash-fy-label" class="fy-badge"><i class="bi bi-calendar-week"></i> FY</span>
+      </div>
+    </header>
+
+    <main id="page-body">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h1><i class="bi bi-bar-chart-fill"></i> Dashboard ภาพรวม</h1>
+          <p>สรุปยอดแผนและรับจริงรายปีงบประมาณ (ต.ค. – ก.ย.)</p>
+        </div>
+      </div>
+
+      <!-- Filter -->
+      <div class="filter-bar" style="margin-bottom:16px">
+        <div class="filter-group">
+          <label class="filter-label">โรงงาน</label>
+          <select class="form-control" id="sel-dash-plant" style="min-width:130px">
+            <option value="">ทั้งหมด</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">เดือน</label>
+          <select class="form-control" id="sel-dash-month" style="min-width:130px">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Supplier</label>
+          <select class="form-control" id="sel-dash-supplier" style="min-width:140px">
+            <option value="all">ทั้งหมด</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">วัตถุดิบ</label>
+          <select class="form-control" id="sel-dash-material" style="min-width:140px">
+            <option value="all">ทั้งหมด</option>
+          </select>
+        </div>
+        <div class="filter-group" style="justify-content:flex-end">
+          <label class="filter-label">&nbsp;</label>
+          <div style="display:flex;gap:6px">
+            <button type="button" class="btn btn-primary" id="btn-dash-filter"><i class="bi bi-bar-chart"></i> แสดง</button>
+            <button type="button" class="btn btn-ghost"   id="btn-dash-reset"><i class="bi bi-arrow-counterclockwise"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="stat-grid" style="margin-bottom:20px">
+        <div class="stat-card stat-card-plan">
+          <div class="stat-card-header">
+            <span class="stat-label">แผนรวม (kg)</span>
+            <i class="bi bi-calendar-check-fill stat-icon"></i>
+          </div>
+          <div class="stat-value" id="kpi-total-plan" style="color:var(--primary)">–</div>
+          <div class="stat-unit">Planned Quantity</div>
+        </div>
+        <div class="stat-card stat-card-actual">
+          <div class="stat-card-header">
+            <span class="stat-label">รับจริงรวม (kg)</span>
+            <i class="bi bi-box-seam-fill stat-icon"></i>
+          </div>
+          <div class="stat-value" id="kpi-total-actual" style="color:var(--teal)">–</div>
+          <div class="stat-unit">SAP Actual</div>
+        </div>
+        <div class="stat-card stat-card-fulfillment">
+          <div class="stat-card-header">
+            <span class="stat-label">Fulfillment Rate</span>
+            <i class="bi bi-percent stat-icon"></i>
+          </div>
+          <div class="stat-value" id="kpi-fulfillment" style="color:#16a34a">–</div>
+          <div class="stat-unit">ยอดรับ / ยอดแผน</div>
+        </div>
+        <div class="stat-card stat-card-total">
+          <div class="stat-card-header">
+            <span class="stat-label">รายการทั้งหมด</span>
+            <i class="bi bi-clipboard-data-fill stat-icon"></i>
+          </div>
+          <div class="stat-value" id="kpi-total-items" style="color:#64748b">–</div>
+          <div class="stat-unit">รายการทั้งหมด</div>
+        </div>
+        <div class="stat-card stat-card-received">
+          <div class="stat-card-header">
+            <span class="stat-label">รับเสร็จแล้ว</span>
+            <i class="bi bi-check-circle-fill stat-icon"></i>
+          </div>
+          <div class="stat-value" id="kpi-received" style="color:#0c8a7e">–</div>
+          <div class="stat-unit">รายการที่รับเข้าสำเร็จ</div>
+        </div>
+        <div class="stat-card stat-card-pending">
+          <div class="stat-card-header">
+            <span class="stat-label">รอรับ</span>
+            <i class="bi bi-hourglass-split stat-icon"></i>
+          </div>
+          <div class="stat-value" id="kpi-pending" style="color:#d97706">–</div>
+          <div class="stat-unit">รายการที่ยังค้างอยู่</div>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="row g-4" style="margin-top:0">
+        <!-- Bar Chart -->
+        <div class="col-12">
+          <div class="chart-card">
+            <div class="chart-title-wrap" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+              <div class="chart-title" style="margin-bottom:0">
+                <i class="bi bi-bar-chart-fill"></i> ยอดเปรียบเทียบ แผน vs รับจริง รายวัน
+              </div>
+              <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                <!-- Monthly Chart Mode Toggle (Plan vs Actual) -->
+                <div id="monthly-chart-toggle-wrap" style="display:none; gap:4px; background:rgba(0,0,0,0.03); padding:3px; border-radius:8px;">
+                  <button class="btn btn-sm btn-monthly-mode btn-primary active" style="padding: 2px 10px; font-size: 11px;" onclick="toggleMonthlyChartMode(this,'plan')">แผน</button>
+                  <button class="btn btn-sm btn-monthly-mode btn-ghost" style="padding: 2px 10px; font-size: 11px;" onclick="toggleMonthlyChartMode(this,'actual')">รับจริง</button>
+                </div>
+                <!-- Dynamic material filter buttons -->
+                <div id="dash-material-filters" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap" style="height:320px; margin-top:16px;">
+              <canvas id="chart-bar"></canvas>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Pie Chart -->
+        <div class="col-lg-6 col-12">
+          <div class="chart-card">
+            <div class="chart-title" style="justify-content:space-between">
+              <span><i class="bi bi-pie-chart-fill"></i> <span id="pie-chart-title">สัดส่วนแผน (Quantity)</span></span>
+              <div style="display:flex;gap:4px">
+                <button class="btn btn-sm btn-mode btn-primary active" onclick="toggleDashMode(this,'plan')">แผน</button>
+                <button class="btn btn-sm btn-mode btn-ghost" onclick="toggleDashMode(this,'actual')">รับจริง</button>
+              </div>
+            </div>
+            <div class="chart-canvas-wrap" style="height:280px">
+              <canvas id="chart-pie"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quota Compliance Chart -->
+        <div class="col-lg-6 col-12">
+          <div class="chart-card">
+            <div class="chart-title">
+              <i class="bi bi-award-fill"></i> เปรียบเทียบสัดส่วนโควต้าจริง vs สัญญา
+            </div>
+            <div class="chart-canvas-wrap" style="height:280px">
+              <canvas id="chart-quota"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/app.js"></script>
+<script src="js/dashboard.js"></script>
+</body>
+</html>
