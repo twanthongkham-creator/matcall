@@ -12,9 +12,9 @@ const pageSize  = 20;
 /* ── Init ──────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', async () => {
   setDefaultDeliveryDate();
+  bindFormEvents();
   await loadMasterData();
   await loadRequestList();
-  bindFormEvents();
   bindBasketEvents();
   renderBasket();
   // FY badge
@@ -47,6 +47,22 @@ async function loadMasterData() {
       document.getElementById('sel-filter-material'),
       mats, '', '', 'ทั้งหมด'
     );
+    
+    // Auto-select plant if user is restricted to a plant
+    const user = Auth.getUser();
+    if (user && user.plant_code) {
+      const selPlant = document.getElementById('sel-plant');
+      if (selPlant) {
+        selPlant.value = user.plant_code;
+        selPlant.disabled = true;
+        selPlant.dispatchEvent(new Event('change'));
+      }
+      const selFilterPlant = document.getElementById('sel-filter-plant');
+      if (selFilterPlant) {
+        selFilterPlant.value = user.plant_code;
+        selFilterPlant.disabled = true;
+      }
+    }
   } catch (e) {
     Toast.error('โหลดข้อมูลโรงงานไม่สำเร็จ: ' + e.message);
   }
@@ -93,10 +109,20 @@ function updateDynamicInputs(material) {
 
   // 2. Tank ID Input Setup
   if (material === "CO2") {
-    if (tankGroup) tankGroup.style.display = 'block';
+    const plant = document.getElementById('sel-plant')?.value;
+    const isRequired = (plant === "PT");
+    
+    if (tankGroup) {
+      tankGroup.style.display = 'block';
+      const label = tankGroup.querySelector('.form-label');
+      if (label) {
+        if (isRequired) label.classList.add('required');
+        else label.classList.remove('required');
+      }
+    }
     tankContainer.innerHTML = `
-      <select class="form-control" id="inp-tank-id">
-        <option value=""></option>
+      <select class="form-control" id="inp-tank-id" ${isRequired ? 'required' : ''}>
+        <option value="">${isRequired ? 'เลือก Tank ID...' : 'เลือก Tank ID (ไม่บังคับ)...'}</option>
         <option value="ถังลินเด้ (CH0011)">ถังลินเด้ (CH0011)</option>
         <option value="ถังแพรกซ์แอร์ (CH0111)">ถังแพรกซ์แอร์ (CH0111)</option>
         <option value="ถังแพรกซ์แอร์ (CH0112)">ถังแพรกซ์แอร์ (CH0112)</option>
@@ -104,7 +130,11 @@ function updateDynamicInputs(material) {
       </select>
     `;
   } else {
-    if (tankGroup) tankGroup.style.display = 'none';
+    if (tankGroup) {
+      tankGroup.style.display = 'none';
+      const label = tankGroup.querySelector('.form-label');
+      if (label) label.classList.remove('required');
+    }
     tankContainer.innerHTML = `
       <input type="text" class="form-control" id="inp-tank-id" placeholder="T-01">
     `;
@@ -162,6 +192,12 @@ function bindFormEvents() {
         opt.dataset.quota = s.remaining_quota ?? '';
         selSup.appendChild(opt);
       });
+      
+      // Auto-select Linde if material is CO2
+      if (material === "CO2") {
+        selSup.value = "ลินเด้ (ประเทศไทย)";
+        selSup.dispatchEvent(new Event('change'));
+      }
     } catch (e) {
       selSup.innerHTML = '<option value="">โหลดไม่สำเร็จ</option>';
       Toast.error('โหลด Supplier ไม่สำเร็จ');
@@ -228,6 +264,12 @@ function addToBasket(e) {
 
   if (!plant || !material || !supplier || !qty || !date) {
     Toast.warning('กรุณากรอก โรงงาน / วัตถุดิบ / Supplier / จำนวน / วันส่งมอบ ให้ครบ');
+    return;
+  }
+
+  const tankId = document.getElementById('inp-tank-id')?.value?.trim();
+  if (material === "CO2" && plant === "PT" && !tankId) {
+    Toast.warning('กรุณาเลือก Tank ID');
     return;
   }
 
@@ -346,7 +388,7 @@ function renderBasket() {
   }
 
   tbody.innerHTML = basket.map((item, i) => `
-    <tr>
+    <tr class="${item.material_name !== 'CO2' ? 'hide-tank' : ''}">
       <td class="td-center" style="color:var(--text-muted);font-size:12px">${i + 1}</td>
       <td><strong>${item.plant_name}</strong></td>
       <td style="white-space:nowrap">${Fmt.dateWithDay(item.delivery_date)}</td>
