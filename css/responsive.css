@@ -277,7 +277,7 @@
     background: #f8fafc;
   }
   
-  .request-basket-panel tr {
+  .request-basket-panel tr:not(:has(.table-empty)) {
     background: #ffffff !important;
     border: 1px solid #e2e8f0 !important;
     border-radius: 12px !important;
@@ -287,14 +287,20 @@
   }
   
   .request-basket-panel tr:has(.table-empty) {
-    padding: 24px 12px !important;
-    text-align: center;
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
+    padding: 0 !important;
   }
   
-  .request-basket-panel td {
+  .request-basket-panel tr:has(.table-empty) td {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .request-basket-panel tr:not(:has(.table-empty)) td {
     padding: 5px 0 !important;
     border: none !important;
     font-size: 13px !important;
@@ -302,7 +308,7 @@
     color: #2d3748;
   }
   
-  .request-basket-panel td:nth-child(1) {
+  .request-basket-panel tr:not(:has(.table-empty)) td:nth-child(1) {
     font-weight: 800 !important;
     color: #1d3a70 !important;
     border-bottom: 1px dashed #e2e8f0 !important;
@@ -310,17 +316,17 @@
     margin-bottom: 8px !important;
     font-size: 14px !important;
   }
-  .request-basket-panel td:nth-child(1)::before {
+  .request-basket-panel tr:not(:has(.table-empty)) td:nth-child(1)::before {
     content: "รายการที่ ";
   }
   
-  .request-basket-panel td:nth-child(2)::before { content: "โรงงาน: "; font-weight: 700; color: #4a5568; }
-  .request-basket-panel td:nth-child(3)::before { content: "วันที่เรียกเข้า: "; font-weight: 700; color: #4a5568; }
-  .request-basket-panel td:nth-child(4)::before { content: "วัตถุดิบ: "; font-weight: 700; color: #4a5568; }
-  .request-basket-panel td:nth-child(5)::before { content: "Supplier: "; font-weight: 700; color: #4a5568; }
-  .request-basket-panel td:nth-child(6)::before { content: "Tank ID: "; font-weight: 700; color: #4a5568; }
+  .request-basket-panel tr:not(:has(.table-empty)) td:nth-child(2)::before { content: "โรงงาน: "; font-weight: 700; color: #4a5568; }
+  .request-basket-panel tr:not(:has(.table-empty)) td:nth-child(3)::before { content: "วันที่เรียกเข้า: "; font-weight: 700; color: #4a5568; }
+  .request-basket-panel tr:not(:has(.table-empty)) td:nth-child(4)::before { content: "วัตถุดิบ: "; font-weight: 700; color: #4a5568; }
+  .request-basket-panel tr:not(:has(.table-empty)) td:nth-child(5)::before { content: "Supplier: "; font-weight: 700; color: #4a5568; }
+  .request-basket-panel tr:not(:has(.table-empty)) td:nth-child(6)::before { content: "Tank ID: "; font-weight: 700; color: #4a5568; }
   
-  .request-basket-panel td:nth-child(7) {
+  .request-basket-panel tr:not(:has(.table-empty)) td:nth-child(7) {
     font-size: 15px !important;
     font-weight: 800 !important;
     color: #0c8a7e !important;
@@ -328,9 +334,9 @@
     border-top: 1px solid #f7fafc !important;
     padding-top: 8px !important;
   }
-  .request-basket-panel td:nth-child(7)::before { content: "จำนวนเรียกเข้า: "; font-weight: 700; color: #4a5568; }
+  .request-basket-panel tr:not(:has(.table-empty)) td:nth-child(7)::before { content: "จำนวนเรียกเข้า: "; font-weight: 700; color: #4a5568; }
   
-  .request-basket-panel td:nth-child(8) {
+  .request-basket-panel tr:not(:has(.table-empty)) td:nth-child(8) {
     position: absolute !important;
     top: 12px !important;
     right: 14px !important;
