@@ -289,14 +289,18 @@ function bindFormEvents() {
           });
 
           selPo.innerHTML = '<option value="">เลือกหมายเลข PO...</option>';
-          for (const [poNum, sumQty] of Object.entries(poMap)) {
+          const poEntries = Object.entries(poMap);
+          poEntries.forEach(([poNum, sumQty]) => {
             const opt = document.createElement('option');
             opt.value = poNum;
             opt.textContent = `${poNum} (คงเหลือยอดรวม: ${Fmt.num(sumQty)} kg)`;
             selPo.appendChild(opt);
-          }
+          });
           
-          if (Object.keys(poMap).length === 0) {
+          if (poEntries.length > 0) {
+            selPo.value = poEntries[0][0]; // Auto-select first PO
+            selPo.dispatchEvent(new Event('change'));
+          } else {
             selPo.innerHTML = '<option value="">ไม่มีหมายเลข PO ที่ใช้งานได้</option>';
           }
         } catch (err) {
