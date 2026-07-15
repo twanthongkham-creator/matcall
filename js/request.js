@@ -156,7 +156,11 @@ function bindFormEvents() {
       return;
     }
     try {
-      const mats = await API.getMaterials(plant);
+      let mats = await API.getMaterials(plant);
+      if (mats.length === 0) {
+        // Fallback to PT if selected plant has no registered materials
+        mats = await API.getMaterials('PT');
+      }
       selMat.innerHTML = '<option value="">เลือกวัตถุดิบ...</option>';
       mats.forEach(m => {
         const opt = document.createElement('option');
@@ -183,7 +187,11 @@ function bindFormEvents() {
       return;
     }
     try {
-      const suppliers = await API.getSupplierByMaterial(plant, material);
+      let suppliers = await API.getSupplierByMaterial(plant, material);
+      if (suppliers.length === 0) {
+        // Fallback to PT if selected plant/material has no registered suppliers
+        suppliers = await API.getSupplierByMaterial('PT', material);
+      }
       selSup.innerHTML = '<option value="">เลือก Supplier...</option>';
       suppliers.forEach(s => {
         const opt = document.createElement('option');
