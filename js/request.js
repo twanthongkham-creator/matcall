@@ -6,6 +6,7 @@
 let reqPlants = [];
 let basket    = [];   // in-memory cart items
 let reqRows   = [];   // existing saved plans
+let activePOs = [];   // loaded POs for selected plant/material
 let currentPage = 1;
 const pageSize  = 20;
 
@@ -174,7 +175,7 @@ function bindFormEvents() {
     }
   });
 
-  // Material change → load suppliers
+  // Material change → load suppliers & POs
   document.getElementById('sel-material')?.addEventListener('change', async function () {
     const plant    = document.getElementById('sel-plant').value;
     const material = this.value;
@@ -182,6 +183,48 @@ function bindFormEvents() {
     selSup.innerHTML = '<option value="">กำลังโหลด...</option>';
     clearQuota();
     updateDynamicInputs(material);
+
+    // PO Group Handling
+    const poGroup = document.getElementById('po-group');
+    const selPo = document.getElementById('sel-po');
+    const poBadge = document.getElementById('po-info-badge');
+    const poDeduct = document.getElementById('po-deduction-wrap');
+
+    if (poGroup && selPo) {
+      if (['CO2', 'Liquid Sugar', 'HFS42%'].includes(material)) {
+        poGroup.style.display = 'block';
+        selPo.required = true;
+        selPo.innerHTML = '<option value="">กำลังโหลด PO...</option>';
+        if (poBadge) poBadge.style.display = 'none';
+        if (poDeduct) poDeduct.style.display = 'none';
+
+        try {
+          activePOs = await API.getPOs(plant, material);
+          const activeList = activePOs.filter(p => !p.is_completed && p.qty_pending > 0);
+          selPo.innerHTML = '<option value="">เลือกหมายเลข PO...</option>';
+          activeList.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.po_number;
+            opt.textContent = `${p.po_number} (คงเหลือ: ${Fmt.num(p.qty_pending)} kg)`;
+            selPo.appendChild(opt);
+          });
+          if (activeList.length === 0) {
+            selPo.innerHTML = '<option value="">ไม่มีหมายเลข PO ที่ใช้งานได้</option>';
+          }
+        } catch (err) {
+          console.error("Error loading POs:", err);
+          selPo.innerHTML = '<option value="">โหลด PO ล้มเหลว</option>';
+        }
+      } else {
+        poGroup.style.display = 'none';
+        selPo.required = false;
+        selPo.innerHTML = '<option value="">เลือกหมายเลข PO...</option>';
+        if (poBadge) poBadge.style.display = 'none';
+        if (poDeduct) poDeduct.style.display = 'none';
+        activePOs = [];
+      }
+    }
+
     if (!material) {
       selSup.innerHTML = '<option value="">เลือกวัตถุดิบก่อน</option>';
       return;
@@ -212,6 +255,34 @@ function bindFormEvents() {
     }
   });
 
+  // PO selection change
+  document.getElementById('sel-po')?.addEventListener('change', function () {
+    const poNum = this.value;
+    const poBadge = document.getElementById('po-info-badge');
+    const pendingEl = document.getElementById('po-pending-qty');
+    const poDeduct = document.getElementById('po-deduction-wrap');
+    
+    if (!poNum) {
+      if (poBadge) poBadge.style.display = 'none';
+      if (poDeduct) poDeduct.style.display = 'none';
+      return;
+    }
+    
+    const selectedPo = activePOs.find(p => p.po_number === poNum);
+    if (selectedPo) {
+      if (poBadge) poBadge.style.display = 'block';
+      if (pendingEl) pendingEl.textContent = Fmt.num(selectedPo.qty_pending);
+      recalculatePoDeduction();
+    }
+  });
+
+  // Quantity input change -> recalculate PO deduction
+  document.getElementById('qty-input-container')?.addEventListener('input', function (e) {
+    if (e.target && e.target.id === 'inp-quantity') {
+      recalculatePoDeduction();
+    }
+  });
+
   // Supplier change → show quota
   document.getElementById('sel-supplier')?.addEventListener('change', function () {
     const opt   = this.options[this.selectedIndex];
@@ -230,6 +301,37 @@ function bindFormEvents() {
 
   // Form submit → add to basket
   document.getElementById('form-basket-item')?.addEventListener('submit', addToBasket);
+
+  // Recalculate helper
+  window.recalculatePoDeduction = function() {
+    const poNum = document.getElementById('sel-po')?.value;
+    const qtyInput = document.getElementById('inp-quantity');
+    const deductWrap = document.getElementById('po-deduction-wrap');
+    const remainingEl = document.getElementById('po-remaining-after');
+    
+    if (!poNum || !qtyInput) {
+      if (deductWrap) deductWrap.style.display = 'none';
+      return;
+    }
+    
+    const enteredQty = parseFloat(qtyInput.value) || 0;
+    const selectedPo = activePOs.find(p => p.po_number === poNum);
+    
+    if (selectedPo && enteredQty > 0) {
+      const remaining = selectedPo.qty_pending - enteredQty;
+      if (deductWrap) deductWrap.style.display = 'inline';
+      if (remainingEl) {
+        remainingEl.textContent = Fmt.num(remaining);
+        if (remaining < 0) {
+          remainingEl.style.color = '#e53e3e';
+        } else {
+          remainingEl.style.color = '#d97706';
+        }
+      }
+    } else {
+      if (deductWrap) deductWrap.style.display = 'none';
+    }
+  };
 
   // Filter events
   document.getElementById('btn-filter-apply')?.addEventListener('click', loadRequestList);
@@ -281,6 +383,14 @@ function addToBasket(e) {
     return;
   }
 
+  // PO selection check
+  const poGroup = document.getElementById('po-group');
+  const poNum = poGroup && poGroup.style.display !== 'none' ? document.getElementById('sel-po')?.value : null;
+  if (poGroup && poGroup.style.display !== 'none' && !poNum) {
+    Toast.warning('กรุณาเลือกหมายเลข PO');
+    return;
+  }
+
   const plantObj = reqPlants.find(p => p.plant_code === plant);
   const dates = date.split(',').map(d => d.trim()).filter(Boolean);
 
@@ -299,6 +409,7 @@ function addToBasket(e) {
       unit,
       delivery_date: d,
       tank_id:       (material === "CO2" ? document.getElementById('inp-tank-id')?.value?.trim() : null) || null,
+      po_number:     poNum,
       target_week:   null,
       remark:        null,
     });
@@ -307,7 +418,11 @@ function addToBasket(e) {
   renderBasket();
 
   // Clear transient fields; keep plant/material/supplier for quick repeat entry
-  if (document.getElementById('inp-quantity')) document.getElementById('inp-quantity').value = '';
+  if (document.getElementById('inp-quantity')) {
+    document.getElementById('inp-quantity').value = '';
+    // trigger input event to clear the PO deduction display
+    document.getElementById('inp-quantity').dispatchEvent(new Event('input'));
+  }
   if (document.getElementById('inp-tank-id')) document.getElementById('inp-tank-id').value = '';
   setDefaultDeliveryDate();
 
@@ -458,10 +573,17 @@ async function saveBasket() {
         quantity:      item.quantity,
         unit:          item.unit,
         tank_id:       item.tank_id,
+        po_number:     item.po_number,
         target_week:   item.target_week,
         remark:        item.remark,
         title:         `${item.material_name} - ${item.supplier_name} - ${item.delivery_date}`,
       });
+      
+      // Deduct quantity from PO if selected
+      if (item.po_number) {
+        await API.updatePoPendingQty(item.po_number, item.material_name, item.quantity);
+      }
+      
       successCount++;
     } catch (e) {
       errors.push(`${item.material_name}: ${e.message}`);

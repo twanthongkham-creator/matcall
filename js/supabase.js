@@ -14,6 +14,7 @@ const TABLE = {
   MASTER_SUPPLIER: 'master_supplier',
   MASTER_PLANT:    'master_plant',
   SUPPLIER_QUOTA:  'supplier_quota',
+  PO_DATA:         'po_data',
 };
 
 /* ── Generic helpers ────────────────────────────────────────── */
@@ -341,6 +342,74 @@ const API = {
 
   async deleteQuota(id) {
     return DB.delete(TABLE.SUPPLIER_QUOTA, id);
+  },
+
+  /* ── PO Data ── */
+  async getPOs(plantCode = null, materialName = null) {
+    try {
+      let q = _supabase.from('po_data').select('*');
+      if (plantCode) q = q.eq('plant', plantCode);
+      if (materialName) q = q.eq('material_name', materialName);
+      q = q.order('po_number', { ascending: true });
+      const { data, error } = await q;
+      if (error) throw error;
+      return data ?? [];
+    } catch (e) {
+      console.warn("Table po_data might not exist, falling back to local storage POs", e);
+      let localPOs = JSON.parse(localStorage.getItem('fallback_pos') || '[]');
+      if (plantCode) localPOs = localPOs.filter(p => p.plant === plantCode);
+      if (materialName) localPOs = localPOs.filter(p => p.material_name === materialName);
+      return localPOs;
+    }
+  },
+
+  async savePOs(posArray) {
+    try {
+      // 1. Delete all existing POs
+      const { error: delError } = await _supabase.from('po_data').delete().neq('id', 0);
+      if (delError) throw delError;
+
+      // 2. Insert new POs in batches
+      if (posArray.length > 0) {
+        const { error: insError } = await _supabase.from('po_data').insert(posArray);
+        if (insError) throw insError;
+      }
+    } catch (e) {
+      console.warn("Table po_data might not exist, saving to local storage fallback", e);
+    }
+    // Always sync with local storage fallback
+    localStorage.setItem('fallback_pos', JSON.stringify(posArray.map((p, idx) => ({ id: idx + 1, ...p }))));
+  },
+  
+  async updatePoPendingQty(poNumber, materialName, qtyDeducted) {
+    try {
+      const { data, error } = await _supabase.from('po_data')
+        .select('*')
+        .eq('po_number', poNumber)
+        .eq('material_name', materialName)
+        .eq('is_completed', false)
+        .limit(1);
+      if (error) throw error;
+      if (data && data.length > 0) {
+        const poItem = data[0];
+        const newPending = Math.max(0, parseFloat(poItem.qty_pending) - parseFloat(qtyDeducted));
+        const isCompleted = newPending <= 0;
+        await _supabase.from('po_data')
+          .update({ qty_pending: newPending, is_completed: isCompleted, updated_at: new Date().toISOString() })
+          .eq('id', poItem.id);
+      }
+    } catch (e) {
+      console.warn("Table po_data error during PO qty deduction update", e);
+    }
+    // Update local storage fallback as well
+    let localPOs = JSON.parse(localStorage.getItem('fallback_pos') || '[]');
+    const idx = localPOs.findIndex(p => p.po_number === poNumber && p.material_name === materialName && !p.is_completed);
+    if (idx !== -1) {
+      const newPending = Math.max(0, parseFloat(localPOs[idx].qty_pending) - parseFloat(qtyDeducted));
+      localPOs[idx].qty_pending = newPending;
+      localPOs[idx].is_completed = newPending <= 0;
+      localStorage.setItem('fallback_pos', JSON.stringify(localPOs));
+    }
   },
 };
 
