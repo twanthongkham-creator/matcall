@@ -117,7 +117,15 @@ function populateFilterDropdowns() {
 async function loadDashMasters(fy) {
   try {
     const plants = await API.getPlants();
-    populateSelect(document.getElementById('sel-dash-plant'), plants, 'plant_code', 'plant_name', 'ทั้งหมด', true);
+    const plantSel = document.getElementById('sel-dash-plant');
+    populateSelect(plantSel, plants, 'plant_code', 'plant_name', 'ทั้งหมด', true);
+    
+    // Lock plant dropdown for restricted plant users
+    const currentUser = Auth.getUser();
+    if (currentUser && currentUser.plant_code && plantSel) {
+      plantSel.value = currentUser.plant_code;
+      plantSel.disabled = true;
+    }
     
     // Load suppliers master for quota calculations
     suppliersMaster = await DB.getAll(TABLE.MASTER_SUPPLIER);
@@ -131,11 +139,13 @@ async function loadDashData() {
   const fy = getCurrentFY();
 
   try {
-    // Fetch all records for the selected plant (no supplier/material filter at API level)
-    // so we can dynamically populate Month, Supplier, and Material dropdowns based on actual records
+    // If user belongs to a specific plant, restrict queries to that plant
+    const currentUser = Auth.getUser();
+    const isPlantLimit = currentUser && currentUser.plant_code;
+
     dashFYData = await API.getFYData(
       fy,
-      plant && plant !== 'all' ? plant : null,
+      isPlantLimit ? currentUser.plant_code : (plant && plant !== 'all' ? plant : null),
       null,
       null
     );

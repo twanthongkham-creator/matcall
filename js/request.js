@@ -18,7 +18,48 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadRequestList();
   bindBasketEvents();
   renderBasket();
+
+  // ── Department access guard ─────────────────────────────────
+  if (Auth.isReadOnly('request.html') || Auth.isWarehouse()) {
+    applyRequestReadOnly();
+  }
 });
+
+/**
+ * ซ่อนปุ่ม action ทั้งหมด (สำหรับ แผนกคลัง ที่เป็น read-only บน request.html)
+ */
+function applyRequestReadOnly() {
+  // Form add-to-basket button
+  ['btn-add-basket', 'btn-clear-basket', 'btn-save-all'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  // Basket delete buttons (rendered dynamically – use MutationObserver)
+  const hideBasketActions = () => {
+    document.querySelectorAll('.btn-remove-basket, .basket-action-btn, #basket-action-row').forEach(el => {
+      el.style.display = 'none';
+    });
+    document.querySelectorAll('.btn-delete-row, .btn-cancel-row').forEach(el => {
+      el.style.display = 'none';
+    });
+  };
+  hideBasketActions();
+  const observer = new MutationObserver(hideBasketActions);
+  const basket = document.getElementById('basket-list');
+  if (basket) observer.observe(basket, { childList: true, subtree: true });
+  const reqTable = document.getElementById('req-table-body');
+  if (reqTable) observer.observe(reqTable, { childList: true, subtree: true });
+
+  // Show read-only banner
+  const formCard = document.querySelector('.form-card') || document.querySelector('.card');
+  if (formCard) {
+    const banner = document.createElement('div');
+    banner.style.cssText = 'background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:10px;padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;gap:8px;font-size:13px;color:#4f46e5;font-weight:600';
+    banner.innerHTML = '<i class="bi bi-eye-fill"></i> โหมดดูข้อมูล (View Only) — แผนกคลังวัตถุดิบสามารถดูข้อมูลได้แต่ไม่สามารถแก้ไขได้';
+    formCard.insertAdjacentElement('beforebegin', banner);
+  }
+}
+
 
 function setDefaultDeliveryDate() {
   const d = new Date();
@@ -67,13 +108,22 @@ async function loadMasterData() {
 }
 
 /* ── Cascade: Plant → Material → Supplier ─────────────────── */
-function getQtyInputHtml(material, dateStr = '') {
+function getQtyInputHtml(material, dateStr = '', includeUnitLabel = true) {
   const cssClass = dateStr ? 'inp-qty-item' : '';
   const nameId = dateStr ? '' : 'id="inp-quantity"';
   const dataAttr = dateStr ? `data-date="${dateStr}"` : '';
   const style = dateStr ? 'style="max-width: 120px;"' : '';
-  
-  if (material === "HFS42%" || material === "Liquid Sugar") {
+
+  let unitLabel = 'kg';
+  if (material === "Bioligo IH200" || material.includes("Bioligo")) {
+    unitLabel = 'IBC';
+  }
+  const unitSpan = includeUnitLabel
+    ? `<span class="input-group-text-plain" style="font-size: 13px; font-weight: 500; min-width: 25px; margin-left: 2px;">${unitLabel}</span>`
+    : '';
+
+  const isHfsOrSugar = material === "HFS42%" || material === "Liquid Sugar" || material.includes("120001687") || material.includes("120001688");
+  if (isHfsOrSugar) {
     return `
       <select class="form-control ${cssClass}" ${nameId} ${dataAttr} ${style} required>
         <option value="">เลือกจำนวน...</option>
@@ -81,8 +131,9 @@ function getQtyInputHtml(material, dateStr = '') {
         <option value="30000">30,000</option>
         <option value="60000">60,000</option>
       </select>
+      ${unitSpan}
     `;
-  } else if (material === "Bioligo IH200") {
+  } else if (material === "Bioligo IH200" || material.includes("Bioligo")) {
     return `
       <select class="form-control ${cssClass}" ${nameId} ${dataAttr} ${style} required>
         <option value=""></option>
@@ -90,16 +141,19 @@ function getQtyInputHtml(material, dateStr = '') {
         <option value="5">5</option>
         <option value="6">6</option>
       </select>
+      ${unitSpan}
     `;
-  } else if (material === "CO2") {
+  } else if (material === "CO2" || material.includes("120001706")) {
     return `
       <select class="form-control ${cssClass}" ${nameId} ${dataAttr} ${style} required>
         <option value="18000">18,000</option>
       </select>
+      ${unitSpan}
     `;
   } else {
     return `
       <input type="number" class="form-control ${cssClass}" ${nameId} ${dataAttr} ${style} min="0.01" step="0.01" required placeholder="0.00">
+      ${unitSpan}
     `;
   }
 }
@@ -108,17 +162,19 @@ function updateDynamicInputs(material) {
   const qtyContainer = document.getElementById('qty-input-container');
   const tankContainer = document.getElementById('tank-input-container');
   const tankGroup = document.getElementById('tank-id-group');
-  if (!qtyContainer || !tankContainer) return;
+  if (!tankContainer) return;
 
-  // 1. Quantity Input Setup
-  qtyContainer.innerHTML = getQtyInputHtml(material);
-  
+  // 1. Quantity Input Setup (unit is shown separately via #sel-unit in single-date mode)
+  if (qtyContainer) {
+    qtyContainer.innerHTML = getQtyInputHtml(material, '', false);
+  }
+
   // bind recalculate listeners
   document.getElementById('inp-quantity')?.addEventListener('input', window.recalculatePoDeduction);
   document.getElementById('inp-quantity')?.addEventListener('change', window.recalculatePoDeduction);
 
   // 2. Tank ID Input Setup
-  if (material === "CO2") {
+  if (material === "CO2" || material.includes("120001706")) {
     const plant = document.getElementById('sel-plant')?.value;
     const isRequired = (plant === "PT");
     
@@ -154,27 +210,35 @@ function updateDynamicInputs(material) {
 const SupplierMap = {
   toSAP(dbName) {
     if (dbName === 'บจก.เจ้าคุณเกษตรพืชผล') return 'เจ้าคุณเกษตรพืชผล';
-    if (dbName === 'WGC') return 'ดับเบิ้ลยูจีซี';
+    if (dbName === 'WGC' || dbName === 'ดับเบิ้ลยูจีซี') return 'ดับเบิ้ลยูจีซี';
+    if (dbName === 'ลินเด้ (ประเทศไทย)') return 'ลินเด้ (ประเทศไทย)';
+    if (dbName === 'พี.เอส.ซี.สตาร์ช โปรดักส์') return 'พี.เอส.ซี.สตาร์ช โปรดักส์';
+    if (dbName === 'แปซิฟิก ชูการ์ คอร์ปอเรชั่น') return 'แปซิฟิก ชูการ์ คอร์ปอเรชั่น';
+    if (dbName === 'ไทยรุ่งเรืองอุตสาหกรรม') return 'ไทยรุ่งเรืองอุตสาหกรรม';
     return dbName;
   },
   toDB(sapName) {
-    if (sapName === 'เจ้าคุณเกษตรพืชผล') return 'บจก.เจ้าคุณเกษตรพืชผล';
-    if (sapName === 'ดับเบิ้ลยูจีซี') return 'WGC';
+    if (sapName === 'เจ้าคุณเกษตรพืชผล' || sapName === 'บจก.เจ้าคุณเกษตรพืชผล') return 'บจก.เจ้าคุณเกษตรพืชผล';
+    if (sapName === 'ดับเบิ้ลยูจีซี' || sapName === 'WGC') return 'ดับเบิ้ลยูจีซี';
+    if (sapName === 'ลินเด้ (ประเทศไทย)') return 'ลินเด้ (ประเทศไทย)';
+    if (sapName === 'พี.เอส.ซี.สตาร์ช โปรดักส์') return 'พี.เอส.ซี.สตาร์ช โปรดักส์';
+    if (sapName === 'แปซิฟิก ชูการ์ คอร์ปอเรชั่น') return 'แปซิฟิก ชูการ์ คอร์ปอเรชั่น';
+    if (sapName === 'ไทยรุ่งเรืองอุตสาหกรรม') return 'ไทยรุ่งเรืองอุตสาหกรรม';
     return sapName;
   }
 };
 
 const MatMap = {
   toDB(sapName) {
-    if (sapName === 'CO2 Gas') return 'CO2';
-    if (sapName === 'น้ำตาลเหลว') return 'Liquid Sugar';
-    if (sapName === 'High Fructose Syrup 42%') return 'HFS42%';
+    if (sapName === '120001706 CO2 Gas' || sapName === 'CO2 Gas') return 'CO2';
+    if (sapName === '120001687 น้ำตาลเหลว' || sapName === 'น้ำตาลเหลว') return 'Liquid Sugar';
+    if (sapName === '120001688 High Fructose Syrup 42%' || sapName === 'High Fructose Syrup 42%') return 'HFS42%';
     return sapName;
   },
   toSAP(dbName) {
-    if (dbName === 'CO2') return 'CO2 Gas';
-    if (dbName === 'Liquid Sugar' || dbName === 'Liquid Sugar ') return 'น้ำตาลเหลว';
-    if (dbName === 'HFS42%') return 'High Fructose Syrup 42%';
+    if (dbName === 'CO2') return '120001706 CO2 Gas';
+    if (dbName === 'Liquid Sugar' || dbName === 'Liquid Sugar ') return '120001687 น้ำตาลเหลว';
+    if (dbName === 'HFS42%') return '120001688 High Fructose Syrup 42%';
     return dbName;
   }
 };
@@ -231,6 +295,16 @@ function bindFormEvents() {
     const poBadge = document.getElementById('po-info-badge');
     if (poBadge) poBadge.style.display = 'none';
     
+    // Auto populate unit based on SAP material name
+    let sapUnit = 'kg';
+    if (material.includes('Bioligo')) {
+      sapUnit = 'IBC';
+    }
+    const unitEl = document.getElementById('sel-unit');
+    const unitMultiEl = document.getElementById('sel-unit-multi');
+    if (unitEl) unitEl.value = sapUnit;
+    if (unitMultiEl) unitMultiEl.value = sapUnit;
+
     updateDynamicInputs(MatMap.toDB(material));
     if (!material) {
       selSup.innerHTML = '<option value="">เลือกวัตถุดิบก่อน</option>';
@@ -251,8 +325,8 @@ function bindFormEvents() {
         selSup.appendChild(opt);
       });
       
-      // Auto-select Linde if material is CO2 Gas
-      if (material === "CO2 Gas") {
+      // Auto-select Linde if material is CO2 Gas (with code)
+      if (material === "120001706 CO2 Gas" || material === "CO2 Gas") {
         selSup.value = "ลินเด้ (ประเทศไทย)";
         selSup.dispatchEvent(new Event('change'));
       }
@@ -290,7 +364,8 @@ function bindFormEvents() {
     const poDeduct = document.getElementById('po-deduction-wrap');
 
     if (poGroup && selPo) {
-      if (['CO2 Gas', 'น้ำตาลเหลว', 'High Fructose Syrup 42%'].includes(material) && supplierName) {
+      const isAllowedMaterial = ['120001706 CO2 Gas', 'CO2 Gas', '120001687 น้ำตาลเหลว', 'น้ำตาลเหลว', '120001688 High Fructose Syrup 42%', 'High Fructose Syrup 42%'].includes(material);
+      if (isAllowedMaterial && supplierName) {
         poGroup.style.display = 'block';
         selPo.required = true;
         selPo.innerHTML = '<option value="">กำลังโหลด PO...</option>';
@@ -298,7 +373,7 @@ function bindFormEvents() {
         if (poDeduct) poDeduct.style.display = 'none';
 
         try {
-          // Fetch POs filtered by supplierName
+          // Fetch POs filtered by supplierName - pass SAP values directly
           activePOs = await API.getPOs(plant, material, supplierName);
           const activeList = activePOs.filter(p => !p.is_completed && p.qty_pending > 0);
           
@@ -389,18 +464,22 @@ function bindFormEvents() {
     if (dates.length <= 1) {
       if (qtySingle) qtySingle.style.display = 'block';
       if (qtyMulti) qtyMulti.style.display = 'none';
-      if (inpSingle) inpSingle.required = true;
+      if (inpSingle) {
+        inpSingle.required = true;
+      }
     } else {
       if (qtySingle) qtySingle.style.display = 'none';
       if (qtyMulti) qtyMulti.style.display = 'block';
-      if (inpSingle) inpSingle.required = false;
+      if (inpSingle) {
+        inpSingle.required = false;
+        inpSingle.value = ''; // clear hidden single input value
+      }
       
       // Render multiple quantity inputs with correct dropdown/input for each date
       if (qtyMultiContainer) {
-        const dbMat = MatMap.toDB(material);
         qtyMultiContainer.innerHTML = dates.map((d, index) => {
           const formattedDate = Fmt.dateWithDay(d);
-          const qtyInputHtml = getQtyInputHtml(dbMat, d);
+          const qtyInputHtml = getQtyInputHtml(material, d);
           return `
             <div class="multi-qty-row" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px;">
               <span style="font-weight: 600; font-size: 13px; color: var(--text);">${formattedDate}</span>
@@ -536,7 +615,8 @@ function addToBasket(e) {
   }
 
   const tankId = document.getElementById('inp-tank-id')?.value?.trim();
-  if (material === "CO2 Gas" && plant === "PT" && !tankId) {
+  const isCO2 = material === "120001706 CO2 Gas" || material === "CO2 Gas";
+  if (isCO2 && plant === "PT" && !tankId) {
     Toast.warning('กรุณาเลือก Tank ID');
     return;
   }
@@ -550,7 +630,7 @@ function addToBasket(e) {
   }
 
   const plantObj = reqPlants.find(p => p.plant_code === plant);
-  const unit = document.getElementById('sel-unit').value;
+  const unit = document.getElementById('sel-unit')?.value || 'kg';
   const itemsToAdd = [];
 
   if (dates.length <= 1) {
@@ -586,7 +666,7 @@ function addToBasket(e) {
       quantity:      item.qty,
       unit,
       delivery_date: item.date,
-      tank_id:       (material === "CO2 Gas" ? document.getElementById('inp-tank-id')?.value?.trim() : null) || null,
+      tank_id:       (isCO2 ? document.getElementById('inp-tank-id')?.value?.trim() : null) || null,
       po_number:     poNum,
       target_week:   null,
       remark:        null,

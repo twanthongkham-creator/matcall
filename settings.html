@@ -228,10 +228,11 @@
                 <table class="table" style="vertical-align: middle;">
                   <thead>
                     <tr>
-                      <th>Username</th>
+                      <th>รหัสพนักงาน</th>
                       <th>ชื่อ-นามสกุล</th>
-                      <th>การจำกัดโรงงาน</th>
-                      <th>บทบาท (Role)</th>
+                      <th>โรงงาน</th>
+                      <th>บทบาท</th>
+                      <th>แผนก</th>
                       <th width="120" class="th-center">จัดการ</th>
                     </tr>
                   </thead>
@@ -416,8 +417,8 @@
       <input type="hidden" id="user-id">
       <div class="modal-body">
         <div class="mb-3">
-          <label class="form-label">Username *</label>
-          <input type="text" id="usr-username" class="form-control form-control-sm" required placeholder="เช่น user_pt">
+          <label class="form-label">รหัสพนักงาน *</label>
+          <input type="text" id="usr-username" class="form-control form-control-sm" required placeholder="เช่น 550101">
         </div>
         <div class="mb-3">
           <label class="form-label">ชื่อ-นามสกุล *</label>
@@ -433,6 +434,15 @@
         <div class="mb-3">
           <label class="form-label">รหัสผ่านสำหรับเข้าใช้งาน *</label>
           <input type="text" id="usr-password" class="form-control form-control-sm" required placeholder="เช่น 1234" value="5678">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">แผนก (Department) *</label>
+          <select id="usr-department" class="form-select form-select-sm" required>
+            <option value="production">แผนกผลิต (Production)</option>
+            <option value="warehouse">แผนกคลังวัตถุดิบ (Warehouse)</option>
+            <option value="admin">Admin (เข้าถึงได้ทุกส่วน)</option>
+          </select>
+          <small class="text-muted">กำหนดสิทธิ์การใช้งานตามหน้าที่แผนก</small>
         </div>
         <div class="mb-3" id="usr-plant-div">
           <label class="form-label">โรงงานที่จำกัดสิทธิ์</label>

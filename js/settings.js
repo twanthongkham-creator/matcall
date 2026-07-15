@@ -209,7 +209,15 @@ document.addEventListener('DOMContentLoaded', async () => {
           tbodyUsers.innerHTML = list.map(u => {
             const plantLimit = u.plant_code ? `<span class="badge bg-secondary">${u.plant_code}</span>` : '<span class="badge bg-success">เข้าได้ทุกโรงงาน</span>';
             const roleBadge = u.role === 'Admin' ? '<span class="badge bg-primary">Admin</span>' : '<span class="badge bg-info text-dark">User</span>';
-            
+            const deptMap = { 
+              production: '<i class="bi bi-gear-fill"></i> แผนกผลิต', 
+              warehouse: '<i class="bi bi-box-seam-fill"></i> แผนกคลัง', 
+              admin: '<i class="bi bi-shield-fill-check"></i> Admin' 
+            };
+            const deptColor = { production: 'bg-success', warehouse: 'bg-primary', admin: 'bg-warning text-dark' };
+            const dept = u.department || (u.role === 'Admin' ? 'admin' : 'production');
+            const deptBadge = `<span class="badge ${deptColor[dept] || 'bg-secondary'} d-inline-flex align-items-center gap-1">${deptMap[dept] || dept}</span>`;
+
             // Lock Central Admin delete or deleting oneself
             const deleteDisabled = (u.username === 'admin' || u.username === currentUser.username) ? 'disabled' : '';
             // Lock Central Admin edit for plant admins
@@ -221,6 +229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td>${u.name}</td>
                 <td>${plantLimit}</td>
                 <td>${roleBadge}</td>
+                <td>${deptBadge}</td>
                 <td class="text-center">
                   <button class="btn btn-outline-primary btn-sm btn-edit-user" style="padding: 2px 8px;" ${editDisabled}>
                     <i class="bi bi-pencil-square"></i> แก้ไข
@@ -449,27 +458,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   function openUserModal(usr = null) {
     const form = document.getElementById('user-form');
     form.reset();
-    
+
     const title = document.getElementById('user-modal-title');
     const idInput = document.getElementById('user-id');
     const usrname = document.getElementById('usr-username');
-    
+
     if (usr) {
       title.textContent = 'แก้ไขข้อมูลผู้ใช้';
       idInput.value = usr.id;
       usrname.value = usr.username;
-      usrname.disabled = true; // cannot change username
+      usrname.disabled = false; // allow editing username
       document.getElementById('usr-name').value = usr.name;
       document.getElementById('usr-role').value = usr.role;
+      document.getElementById('usr-department').value = usr.department || (usr.role === 'Admin' ? 'admin' : 'production');
       document.getElementById('usr-password').value = usr.password || (usr.role === 'Admin' ? '1234' : '5678');
       document.getElementById('usr-plant').value = usr.plant_code || '';
     } else {
       title.textContent = 'เพิ่มผู้ใช้ใหม่';
       idInput.value = '';
       document.getElementById('usr-password').value = '5678';
+      document.getElementById('usr-department').value = 'production';
       usrname.disabled = false;
     }
-    
+
     // Plant Admin restrictions: lock plant selection
     const plantSel = document.getElementById('usr-plant');
     if (currentUser.plant_code) {
@@ -478,7 +489,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       plantSel.disabled = false;
     }
-    
+
     toggleUserPlantDiv();
     Modal.show('user-modal');
   }
@@ -507,6 +518,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         username: document.getElementById('usr-username').value.trim().toLowerCase(),
         name: document.getElementById('usr-name').value.trim(),
         role: document.getElementById('usr-role').value,
+        department: document.getElementById('usr-department').value,
         plant_code: currentUser.plant_code ? currentUser.plant_code : (document.getElementById('usr-role').value === 'Admin' ? null : document.getElementById('usr-plant').value || null),
         password: document.getElementById('usr-password').value.trim() || (document.getElementById('usr-role').value === 'Admin' ? '1234' : '5678')
       };

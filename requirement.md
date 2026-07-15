@@ -26,15 +26,42 @@
 
 ## 2. เมนูและหน้า (Screens)
 
-| หน้า | ไฟล์ | กลุ่มผู้ใช้ |
-|------|------|------------|
+| หน้า | ไฟล์ | กลุ่มผู้ใช้ที่มีสิทธิ์ |
+|------|------|---------------------|
 | หน้าหลัก | index.html | ทุกคน |
-| เรียกเข้าวัตถุดิบ | request.html | ฝ่ายผลิต |
-| ประวัติและสถานะ | history.html | คลังวัตถุดิบ |
-| รับวัตถุดิบ | receive.html | คลังวัตถุดิบ |
-| Dashboard | dashboard.html | ผู้จัดการ / ทุกคน |
-| Preview Email Supplier | email-preview-supplier.html | คลังวัตถุดิบ |
-| Preview Email PAN | email-preview-pan.html | คลังวัตถุดิบ |
+| เรียกเข้าวัตถุดิบ | request.html | ฝ่ายผลิต (Full), คลังวัตถุดิบ (View Only), Admin (Full) |
+| ข้อมูล PO | po.html | คลังวัตถุดิบ (View Only), Admin (Full & Import) |
+| ประวัติและสถานะ | history.html | ทุกคน |
+| รับวัตถุดิบ | receive.html | คลังวัตถุดิบ (Full), ฝ่ายผลิต (View Only), Admin (Full) |
+| Dashboard | dashboard.html | ทุกคน |
+| จัดการข้อมูล & สิทธิ์ | settings.html | Admin เท่านั้น |
+| Preview Email Supplier | email-preview-supplier.html | คลังวัตถุดิบ, Admin |
+| Preview Email PAN | email-preview-pan.html | คลังวัตถุดิบ, Admin |
+
+---
+
+## 2.1 สิทธิ์และการควบคุมเข้าถึงตามแผนก (Department-Based RBAC)
+
+ระบบกำหนดให้สิทธิ์การใช้งานแยกตาม **แผนก (Department)** และ **บทบาท (Role)** ดังนี้:
+
+- 🏭 **แผนกผลิต (Production)**
+  - จัดการข้อมูลและวางแผนเรียกเข้าวัตถุดิบใน `request.html`
+  - ดูข้อมูลประวัติสถานะใน `history.html`
+  - ดูข้อมูลการรับวัตถุดิบใน `receive.html` ได้เท่านั้น (View Only - ซ่อนปุ่มแก้ไข/ส่งอีเมล)
+  - ไม่สามารถเปิดหน้าตั้งค่า (`settings.html`) และไม่เห็นเมนู "ข้อมูล PO" (`po.html`)
+- 📦 **แผนกคลังวัตถุดิบ (Warehouse)**
+  - ดูข้อมูลแผนเรียกเข้าใน `request.html` ได้เท่านั้น (View Only - ซ่อนปุ่มบันทึก/ลบ/ใส่ตะกร้า)
+  - บันทึกการรับวัตถุดิบจริงและส่งอีเมล PAN สรุปใน `receive.html`
+  - ดูข้อมูลประวัติสถานะใน `history.html`
+  - ดูข้อมูล PO ใน `po.html` ได้เท่านั้น (View Only - ซ่อนปุ่ม Import ข้อมูล)
+  - ไม่สามารถเปิดหน้าตั้งค่า (`settings.html`)
+- 🛡️ **Admin**
+  - มีสิทธิ์ดำเนินการทุกอย่างในระบบ รวมถึงการแก้ไขข้อมูลพนักงาน (สามารถแก้ไขรหัสพนักงาน/Username ได้)
+  - นำเข้าข้อมูล PO (Import XLSX หรือดึงผ่าน SAP API) ในหน้า `po.html`
+  - จัดการสิทธิ์การใช้งานผ่าน `settings.html`
+
+> [!NOTE]
+> ใน Sidebar เมนูหลักจะทำการคัดกรองและซ่อนปุ่มนำทางตามสิทธิ์แผนกที่กำหนดไว้ และมี Badge แสดงแผนกของผู้ใช้อยู่ใต้รูปโปรไฟล์บริเวณมุมล่างซ้าย
 
 ---
 

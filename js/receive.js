@@ -13,7 +13,35 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadReceiveMasters();
   await loadReceiveList();
   bindReceiveEvents();
+
+  // ── Department access guard ─────────────────────────────────
+  if (Auth.isReadOnly('receive.html') || Auth.isProduction()) {
+    applyReceiveReadOnly();
+  }
 });
+
+/**
+ * ซ่อนปุ่ม action บน receive.html (สำหรับ แผนกผลิต ที่เป็น read-only)
+ */
+function applyReceiveReadOnly() {
+  // Hide monthly email button & save button inside the receive form modal
+  ['btn-monthly-email', 'btn-rcv-submit'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  // Replace "บันทึก" button in each row with "ดู" only – handled via render override
+  window._receiveReadOnly = true;
+
+  // Show read-only banner
+  const firstCard = document.querySelector('.card');
+  if (firstCard) {
+    const banner = document.createElement('div');
+    banner.style.cssText = 'background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;gap:8px;font-size:13px;color:#059669;font-weight:600';
+    banner.innerHTML = '<i class="bi bi-eye-fill"></i> โหมดดูข้อมูล (View Only) — แผนกผลิตสามารถดูข้อมูลการรับได้แต่ไม่สามารถบันทึกได้';
+    firstCard.insertAdjacentElement('beforebegin', banner);
+  }
+}
+
 
 /* ── Masters ────────────────────────────────────────────────── */
 async function loadReceiveMasters() {
@@ -139,7 +167,7 @@ function renderReceiveTable(rows, startIdx = 0) {
       <td class="td-center">${Fmt.statusBadge(r.receive_status ?? 'Pending')}</td>
       <td class="td-center">
         <button class="btn btn-teal btn-sm" onclick="openReceiveForm(${r.id})">
-          ${r.receive_status === 'SAP Completed'
+          ${window._receiveReadOnly || r.receive_status === 'SAP Completed'
             ? '<i class="bi bi-eye"></i> ดู'
             : '<i class="bi bi-pencil-fill"></i> บันทึก'}
         </button>

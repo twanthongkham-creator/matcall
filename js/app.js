@@ -239,6 +239,57 @@ function debounce(fn, ms = 300) {
 
 /* ── Authentication & Profile Session ────────────────────────── */
 const Auth = {
+  // ─── Department helpers ────────────────────────────────────
+  /** Department values: 'production' | 'warehouse' | 'admin' */
+  getDept() {
+    const u = this.getUser();
+    // Fallback: Admin role without explicit dept → treat as admin
+    if (!u) return null;
+    return u.department || (u.role === 'Admin' ? 'admin' : 'production');
+  },
+  isAdmin() {
+    const u = this.getUser();
+    if (!u) return false;
+    return u.role === 'Admin' || this.getDept() === 'admin';
+  },
+  isProduction() {
+    return this.getDept() === 'production';
+  },
+  isWarehouse() {
+    return this.getDept() === 'warehouse';
+  },
+
+  /**
+   * Returns true if the user can navigate to the given page.
+   * Admin → all pages
+   * production → dashboard, request (RW), history, po (RO)
+   * warehouse  → dashboard, receive (RW), history, po (RO)
+   */
+  canAccess(page) {
+    if (this.isAdmin()) return true;
+    const dept = this.getDept();
+    const access = {
+      production: ['index.html', 'request.html', 'history.html', 'po.html'],
+      warehouse:  ['index.html', 'receive.html', 'history.html', 'po.html'],
+    };
+    return (access[dept] || []).includes(page);
+  },
+
+  /**
+   * Returns true if the user can see the page but should NOT perform write actions.
+   * e.g., warehouse sees request page in read-only.
+   */
+  isReadOnly(page) {
+    if (this.isAdmin()) return false;
+    const dept = this.getDept();
+    const readOnly = {
+      production: ['receive.html'],
+      warehouse:  ['request.html'],
+    };
+    return (readOnly[dept] || []).includes(page);
+  },
+
+  // ─── Core auth ────────────────────────────────────────────
   getUser() {
     try {
       const u = localStorage.getItem('matcall_user');
@@ -270,7 +321,29 @@ const Auth = {
       return;
     }
 
-    // Add logout button to topbar dynamically (essential for mobile)
+    // ── Sidebar menu visibility based on department ──────────
+    const menuRules = {
+      production: ['index.html', 'request.html', 'history.html'],
+      warehouse:  ['index.html', 'receive.html', 'history.html', 'po.html'],
+      admin:      ['index.html', 'request.html', 'receive.html', 'history.html', 'po.html', 'settings.html'],
+    };
+    const dept = user.department || (user.role === 'Admin' ? 'admin' : 'production');
+    const allowed = menuRules[dept] || menuRules['production'];
+
+    document.querySelectorAll('.sidebar-nav .nav-item').forEach(el => {
+      const page = el.dataset.page || el.getAttribute('data-page');
+      const li = el.closest('li');
+      if (!li) return;
+      if (page) {
+        if (!allowed.includes(page)) {
+          li.style.display = 'none';
+        } else {
+          li.style.display = ''; // Ensure it remains visible
+        }
+      }
+    });
+
+    // ── Add logout button to topbar dynamically ──────────────
     const topbar = document.getElementById('topbar');
     if (topbar && !document.getElementById('topbar-logout')) {
       const logoutBtn = document.createElement('button');
@@ -288,7 +361,7 @@ const Auth = {
       logoutBtn.style.display = 'inline-flex';
       logoutBtn.style.alignItems = 'center';
       logoutBtn.style.gap = '4px';
-      
+
       logoutBtn.onmouseenter = () => {
         logoutBtn.style.background = '#dc2626';
         logoutBtn.style.color = '#ffffff';
@@ -304,26 +377,34 @@ const Auth = {
           Auth.logout();
         }
       };
-      
+
       // Always append to the end of topbar to ensure it is at the far right
       topbar.appendChild(logoutBtn);
     }
 
-    // Update sidebar user badge
+    // ── Sidebar footer user badge ─────────────────────────────
+    const deptLabel = {
+      production: '<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(52,211,153,0.15);color:#34d399;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:700"><i class="bi bi-gear-fill"></i>แผนกผลิต</span>',
+      warehouse:  '<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(129,140,248,0.2);color:#a5b4fc;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:700"><i class="bi bi-box-seam-fill"></i>แผนกคลัง</span>',
+      admin:      '<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(251,191,36,0.15);color:#fbbf24;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:700"><i class="bi bi-shield-fill-check"></i>Admin</span>',
+    };
+
     const footer = document.querySelector('.sidebar-footer');
     if (footer) {
       const avatar = user.plant_code ? user.plant_code : (user.role === 'Admin' ? 'SA' : (user.name ? user.name.substring(0, 2).toUpperCase() : 'US'));
-      const plantLabel = user.plant_code ? `โรงงาน ${user.plant_code}` : 'ส่วนกลาง';
-      const displayRole = user.role === 'Admin' ? 'Admin (ส่วนกลาง)' : `User (${plantLabel})`;
-      
+      const deptBadge = deptLabel[dept] || '';
+
       footer.innerHTML = `
-        <div class="user-badge" style="cursor:pointer; position:relative;" onclick="if(confirm('ต้องการสลับบัญชี/Log out?')) Auth.logout()">
-          <div class="user-avatar" style="background:#0c8a7e; color:#fff; font-size: 11px; letter-spacing: -0.3px">${avatar}</div>
-          <div class="user-info">
-            <div class="user-name">${user.name}</div>
-            <div class="user-role" style="font-size:11px">${displayRole}</div>
+        <div class="user-badge" style="cursor:pointer; position:relative; flex-direction:column; align-items:flex-start; gap:6px;" onclick="if(confirm('ต้องการสลับบัญชี/Log out?')) Auth.logout()">
+          <div style="display:flex;align-items:center;gap:8px;width:100%">
+            <div class="user-avatar" style="background:#0c8a7e; color:#fff; font-size: 11px; letter-spacing: -0.3px; flex-shrink:0">${avatar}</div>
+            <div class="user-info" style="flex:1;min-width:0">
+              <div class="user-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${user.name}</div>
+              <div class="user-role" style="font-size:10px;color:#a0aec0">${user.plant_code ? `โรงงาน ${user.plant_code}` : 'ส่วนกลาง'}</div>
+            </div>
+            <div style="color:#a0aec0; flex-shrink:0"><i class="bi bi-box-arrow-right"></i></div>
           </div>
-          <div style="margin-left:auto; color:#a0aec0;"><i class="bi bi-box-arrow-right"></i></div>
+          <div style="padding-left:4px">${deptBadge}</div>
         </div>
       `;
     }

@@ -25,6 +25,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('sel-po-status')?.addEventListener('change', renderPOTable);
   document.getElementById('btn-po-reset-filter')?.addEventListener('click', resetFilters);
 
+  // ── Department access guard: hide import buttons for non-admin ──
+  if (!Auth.isAdmin()) {
+    const importActions = document.querySelector('.import-actions');
+    if (importActions) importActions.style.display = 'none';
+  }
+
   // Load and Render Current POs
   await loadPOs();
 });
@@ -198,9 +204,9 @@ async function parseAndSaveExcel(arrayBuffer) {
 
     // Map material to exact SAP name
     let materialName = '';
-    if (matCode === '120001706') materialName = 'CO2 Gas';
-    else if (matCode === '120001687') materialName = 'น้ำตาลเหลว';
-    else if (matCode === '120001688') materialName = 'High Fructose Syrup 42%';
+    if (matCode === '120001706') materialName = '120001706 CO2 Gas';
+    else if (matCode === '120001687') materialName = '120001687 น้ำตาลเหลว';
+    else if (matCode === '120001688') materialName = '120001688 High Fructose Syrup 42%';
     else continue; // Skip other materials
 
     // Map plant
@@ -212,8 +218,8 @@ async function parseAndSaveExcel(arrayBuffer) {
     else if (rawPlant === '3205') plant = 'SR';
     else continue; // Skip other plants
 
-    // Map vendor to MATCALL database supplier names
-    const supplierName = mapVendorToSupplier(rawVendor);
+    // Use raw vendor name from SAP Excel directly
+    const supplierName = rawVendor.trim();
 
     // Date formatting
     let docDate = null;
