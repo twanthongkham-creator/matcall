@@ -24,6 +24,34 @@ document.addEventListener('DOMContentLoaded', async () => {
   setDefaultDeliveryDate();
   bindFormEvents();
   await loadMasterData();
+  
+  // Set default filter values: Next Monday (จ) to Next Saturday (ส)
+  const today = new Date();
+  const currentDay = today.getDay(); // 0: Sun, 1: Mon, ...
+  
+  // Next Monday calculation
+  // If today is Sunday (0), next Monday is tomorrow (+1).
+  // If today is Monday-Saturday (1-6), next Monday is next week's Monday (7 - day + 1)
+  const daysToNextMonday = currentDay === 0 ? 1 : 7 - currentDay + 1;
+  const nextMonday = new Date(today);
+  nextMonday.setDate(today.getDate() + daysToNextMonday);
+  
+  // Next Saturday is 5 days after next Monday
+  const nextSaturday = new Date(nextMonday);
+  nextSaturday.setDate(nextMonday.getDate() + 5);
+  
+  const fromEl = document.getElementById('inp-date-from');
+  const toEl = document.getElementById('inp-date-to');
+  if (fromEl) fromEl.value = nextMonday.toISOString().split('T')[0];
+  if (toEl) toEl.value = nextSaturday.toISOString().split('T')[0];
+  
+  // Default plant filter to logged-in user's plant
+  const user = Auth.getUser();
+  if (user && user.plant_code) {
+    const filterPlantEl = document.getElementById('sel-filter-plant');
+    if (filterPlantEl) filterPlantEl.value = user.plant_code;
+  }
+  
   await loadRequestList();
   bindBasketEvents();
   renderBasket();
@@ -187,7 +215,7 @@ function getTankInputHtml(dateStr = '', isRequired = false) {
   const cssClass = dateStr ? 'inp-tank-item' : '';
   const idAttr = dateStr ? '' : 'id="inp-tank-id"';
   const dataAttr = dateStr ? `data-date="${dateStr}"` : '';
-  const style = dateStr ? 'style="max-width: 180px;"' : '';
+  const style = dateStr ? 'style="width: 100%;"' : 'style="max-width: 180px;"';
   return `
     <select class="form-control ${cssClass}" ${idAttr} ${dataAttr} ${style} ${isRequired ? 'required' : ''}>
       <option value="">${isRequired ? 'เลือก Tank ID...' : 'เลือก Tank ID (ไม่บังคับ)...'}</option>
@@ -544,23 +572,39 @@ function bindFormEvents() {
 
         qtyMultiContainer.innerHTML = dates.map((d, index) => {
           const formattedDate = Fmt.dateWithDay(d);
-          const qtyInputHtml = getQtyInputHtml(material, d);
+          const qtyInputHtml = getQtyInputHtml(material, d, false); // pass false to exclude unitLabel next to the input, as we style it nicely now
           const tankInputHtml = isCO2 ? getTankInputHtml(d, isTankRequired) : '';
+          
+          // Determine unit text
+          let unitLabel = 'kg';
+          if (material === 'Bioligo IH200' || material.includes('Bioligo')) {
+            unitLabel = 'IBC';
+          }
+
           return `
-            <div class="multi-qty-row" style="display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding: 7px 4px; ${index < dates.length - 1 ? 'border-bottom: 1px solid var(--border);' : ''}">
-              <span style="min-width: 150px; font-weight: 700; font-size: 13px; color: var(--text); display: flex; align-items: center; gap: 4px;">
-                <i class="bi bi-calendar3" style="color: var(--teal);"></i>${formattedDate}
-              </span>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <span style="font-size: 12px; color: var(--text-muted); white-space: nowrap;">จำนวน</span>
-                ${qtyInputHtml}
+            <div class="multi-date-card" style="background:#ffffff; border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+              <div style="font-weight: 700; font-size: 13.5px; color: var(--primary); display: flex; align-items: center; gap: 6px; margin-bottom: 10px; border-bottom: 1px dashed var(--border); padding-bottom: 6px;">
+                <i class="bi bi-calendar3-event-fill" style="color: var(--teal);"></i> ${formattedDate}
               </div>
-              ${isCO2 ? `
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <span style="font-size: 12px; color: var(--text-muted); white-space: nowrap;">Tank ID${isTankRequired ? ' *' : ''}</span>
-                  ${tankInputHtml}
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <!-- Quantity Field -->
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                  <span style="font-size: 12.5px; color: var(--text-muted); font-weight: 500;">จำนวนเรียกเข้า</span>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    ${qtyInputHtml}
+                    <span style="font-size: 12.5px; font-weight: 600; color: var(--text); min-width: 25px;">${unitLabel}</span>
+                  </div>
                 </div>
-              ` : ''}
+                <!-- Tank ID Field if CO2 -->
+                ${isCO2 ? `
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px;">
+                  <span style="font-size: 12.5px; color: var(--text-muted); font-weight: 500;">Tank ID${isTankRequired ? ' <span style="color:#ef4444">*</span>' : ''}</span>
+                  <div style="width: 155px;">
+                    ${tankInputHtml}
+                  </div>
+                </div>
+                ` : ''}
+              </div>
             </div>
           `;
         }).join('');
@@ -801,9 +845,12 @@ function addToBasket(e) {
 
   if (document.getElementById('inp-tank-id')) document.getElementById('inp-tank-id').value = '';
 
-  // Reset date picker and trigger change to reset quantity layout
-  setDefaultDeliveryDate();
-  document.getElementById('inp-delivery-date')?.dispatchEvent(new Event('change'));
+  // Reset date picker to empty and trigger change to reset quantity layout
+  const dateInput = document.getElementById('inp-delivery-date');
+  if (dateInput) {
+    dateInput.value = '';
+    dateInput.dispatchEvent(new Event('change'));
+  }
 
   Toast.success(`เพิ่มลงตะกร้าแล้ว ${itemsToAdd.length} รายการ`);
 }

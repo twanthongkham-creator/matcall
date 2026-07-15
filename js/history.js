@@ -59,6 +59,16 @@ async function loadHistoryMasters() {
 
     histMaterials = await API.getMaterials();
     renderMaterialTabs();
+
+    // Auto-select plant if user is restricted to a plant
+    const user = Auth.getUser();
+    if (user && user.plant_code) {
+      const selHistPlant = document.getElementById('sel-hist-plant');
+      if (selHistPlant) {
+        selHistPlant.value = user.plant_code;
+        selHistPlant.disabled = true;
+      }
+    }
   } catch (e) { console.error(e); }
 }
 

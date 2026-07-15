@@ -79,6 +79,10 @@
     justify-content: center !important;
   }
 
+  .sidebar-nav li[style*="display: none"] {
+    display: none !important;
+  }
+
   /* Compact button styling on mobile bottom bar */
   .nav-item {
     display: flex !important;
@@ -243,17 +247,55 @@
 
   .table-actions { flex-wrap: wrap; }
 
+  .filter-bar {
+    gap: 8px !important;
+  }
+
   .filter-bar .filter-group {
-    width: 100%;
+    width: 100% !important;
+  }
+
+  /* Make date from and date to inline side-by-side on mobile */
+  .filter-bar .filter-group:has(#inp-date-from),
+  .filter-bar .filter-group:has(#inp-date-to),
+  .filter-bar .filter-group:has(#inp-hist-from),
+  .filter-bar .filter-group:has(#inp-hist-to) {
+    width: calc(50% - 4px) !important;
+    display: inline-flex !important;
   }
 
   .filter-bar .form-control,
   .filter-bar select.form-control {
-    width: 100%;
+    width: 100% !important;
   }
 
   .topbar-actions .btn span,
   #topbar-logout span { display: none !important; }
+}
+
+/* ── Mobile Layout adjustments (≤ 768px) ── */
+@media (max-width: 768px) {
+  .filter-bar {
+    gap: 8px !important;
+  }
+
+  .filter-bar .filter-group {
+    width: 100% !important;
+  }
+
+  /* Date fields side-by-side on mobile */
+  .filter-bar .filter-group:has(#inp-date-from),
+  .filter-bar .filter-group:has(#inp-date-to),
+  .filter-bar .filter-group:has(#inp-hist-from),
+  .filter-bar .filter-group:has(#inp-hist-to) {
+    width: calc(50% - 4px) !important;
+    display: inline-flex !important;
+  }
+
+  .btn-basket-add {
+    max-width: none !important;
+    width: 100% !important;
+  }
 }
 
 /* ── Basket Card View on Mobile (≤ 768px) ── */
@@ -367,10 +409,20 @@
     background-color: #f0fdfa !important;
     color: #0f766e !important;
     font-weight: 700 !important;
-    padding: 3px 8px !important;
+    padding: 3px 24px 3px 8px !important; /* Right padding increased to 24px to prevent overlapping with dropdown V arrow */
     height: 32px !important;
     box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
-    max-width: 150px !important;
+    width: 135px !important;
+    max-width: 135px !important;
+  }
+
+  /* Differentiate Tank ID style from Quantity in Mobile Basket Cards and make it wider to fit long text */
+  .request-basket-panel tr:not(:has(.table-empty)) td:nth-child(6) select {
+    border-color: #2563eb !important; /* Soft royal blue border */
+    background-color: #eff6ff !important; /* Soft blue background */
+    color: #1e40af !important; /* Deep blue text color */
+    width: 190px !important; /* Made wider so long Tank IDs like "ถังลินเด้ (CH0011)" are fully visible */
+    max-width: 190px !important;
   }
   
   .request-basket-panel tr:not(:has(.table-empty)) td:nth-child(8) {

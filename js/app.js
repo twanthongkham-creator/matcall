@@ -269,8 +269,8 @@ const Auth = {
     if (this.isAdmin()) return true;
     const dept = this.getDept();
     const access = {
-      production: ['index.html', 'request.html', 'history.html', 'po.html'],
-      warehouse:  ['index.html', 'receive.html', 'history.html', 'po.html'],
+      production: ['index.html', 'request.html', 'history.html'],
+      warehouse:  ['index.html', 'receive.html', 'history.html'],
     };
     return (access[dept] || []).includes(page);
   },
@@ -321,10 +321,16 @@ const Auth = {
       return;
     }
 
+    // ── Route Access Protection ──────────────────────────────
+    if (!this.canAccess(path)) {
+      window.location.href = 'index.html';
+      return;
+    }
+
     // ── Sidebar menu visibility based on department ──────────
     const menuRules = {
-      production: ['index.html', 'request.html', 'history.html', 'po.html'],
-      warehouse:  ['index.html', 'receive.html', 'history.html', 'po.html'],
+      production: ['index.html', 'request.html', 'history.html'],
+      warehouse:  ['index.html', 'receive.html', 'history.html'],
       admin:      ['index.html', 'request.html', 'receive.html', 'history.html', 'po.html', 'settings.html'],
     };
     const dept = user.department || (user.role === 'Admin' ? 'admin' : 'production');
@@ -333,13 +339,13 @@ const Auth = {
     document.querySelectorAll('.sidebar-nav .nav-item').forEach(el => {
       const page = el.dataset.page || el.getAttribute('data-page');
       const li = el.closest('li');
-      if (!li) return;
       if (page) {
-        // Only touch style.display when it actually needs to change.
         if (!allowed.includes(page)) {
-          if (li.style.display !== 'none') li.style.display = 'none';
+          if (li) li.style.display = 'none';
+          el.style.display = 'none';
         } else {
-          if (li.style.display === 'none') li.style.display = '';
+          if (li) li.style.display = '';
+          el.style.display = '';
         }
       }
     });
@@ -379,7 +385,74 @@ const Auth = {
         }
       };
 
-      // Always append to the end of topbar to ensure it is at the far right
+      // ── Add Switch User Dropdown for Testing ──────────────────
+      const switchContainer = document.createElement('div');
+      switchContainer.id = 'topbar-switch-user';
+      switchContainer.style.display = 'inline-flex';
+      switchContainer.style.alignItems = 'center';
+      switchContainer.style.marginLeft = 'auto';
+      switchContainer.style.gap = '6px';
+      
+      const switchSelect = document.createElement('select');
+      switchSelect.className = 'form-control form-control-sm';
+      switchSelect.style.width = '140px';
+      switchSelect.style.fontSize = '12px';
+      switchSelect.style.padding = '4px 8px';
+      switchSelect.style.height = '32px';
+      switchSelect.innerHTML = '<option value="" disabled selected>สลับสิทธิ์ผู้ใช้...</option>';
+
+      // Fetch users and populate only representative groups
+      API.getUsers().then(users => {
+        // Find one user for each required role/group
+        const superAdmin = users.find(u => u.username.toLowerCase() === 'admin');
+        const userProd = users.find(u => u.role.toLowerCase() === 'user' && u.department.toLowerCase() === 'production');
+        const userWh = users.find(u => u.department.toLowerCase() === 'warehouse');
+        const adminPlant = users.find(u => u.role.toLowerCase() === 'admin' && u.department.toLowerCase() === 'production' && u.plant_code);
+
+        const representatives = [
+          { user: superAdmin, label: 'Super Admin' },
+          { user: userProd, label: 'User แผนกผลิต' },
+          { user: userWh, label: 'User แผนกคลัง' },
+          { user: adminPlant, label: 'Admin โรงงาน' }
+        ];
+
+        representatives.forEach(rep => {
+          if (rep.user) {
+            const opt = document.createElement('option');
+            opt.value = rep.user.username;
+            opt.textContent = rep.label;
+            
+            // Check if active user belongs to this category to mark selected
+            const isSuperActive = rep.label === 'Super Admin' && user.username.toLowerCase() === 'admin';
+            const isProdActive = rep.label === 'User แผนกผลิต' && user.role.toLowerCase() === 'user' && user.department.toLowerCase() === 'production';
+            const isWhActive = rep.label === 'User แผนกคลัง' && user.department.toLowerCase() === 'warehouse';
+            const isAdminPlantActive = rep.label === 'Admin โรงงาน' && user.role.toLowerCase() === 'admin' && user.department.toLowerCase() === 'production' && user.plant_code;
+
+            if (isSuperActive || isProdActive || isWhActive || isAdminPlantActive) {
+              opt.selected = true;
+            }
+            switchSelect.appendChild(opt);
+          }
+        });
+      }).catch(err => console.error(err));
+
+      switchSelect.onchange = async () => {
+        const selectedUsername = switchSelect.value;
+        if (!selectedUsername) return;
+        try {
+          const users = await API.getUsers();
+          const target = users.find(u => u.username.toLowerCase() === selectedUsername.toLowerCase());
+          if (target) {
+            Auth.setUser(target);
+            window.location.reload();
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      };
+
+      switchContainer.appendChild(switchSelect);
+      topbar.appendChild(switchContainer);
       topbar.appendChild(logoutBtn);
     }
 
@@ -429,6 +502,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   Auth.checkAuth();
+  // Clear stale fallback users list to force updates
+  try {
+    localStorage.removeItem('fallback_users');
+  } catch (e) {}
+
   // Restore collapsed sidebar state on desktop
   if (localStorage.getItem('sidebar_collapsed') === '1' && window.innerWidth > 768) {
     document.body.classList.add('collapsed');

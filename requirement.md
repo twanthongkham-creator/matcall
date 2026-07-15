@@ -16,7 +16,7 @@
 | Layer | Technology |
 |-------|-----------|
 | Frontend | HTML5, Bootstrap 5, Vanilla JS |
-| Font | Noto Sans Thai (Google Fonts) |
+| Font | Prompt (Google Fonts) |
 | Backend/DB | Supabase (PostgreSQL) |
 | Charts | Chart.js v4 |
 | Icons | Bootstrap Icons |
@@ -29,9 +29,9 @@
 | หน้า | ไฟล์ | กลุ่มผู้ใช้ที่มีสิทธิ์ |
 |------|------|---------------------|
 | หน้าหลัก | index.html | ทุกคน |
-| เรียกเข้าวัตถุดิบ | request.html | ฝ่ายผลิต (Full), คลังวัตถุดิบ (View Only), Admin (Full) |
-| ข้อมูล PO | po.html | คลังวัตถุดิบ (View Only), Admin (Full & Import) |
-| ประวัติและสถานะ | history.html | ทุกคน |
+| เรียกเข้าวัตถุดิบ (แผนกผลิต) | request.html | ฝ่ายผลิต (Full), คลังวัตถุดิบ (View Only), Admin (Full) |
+| ข้อมูล PO | po.html | Admin เท่านั้น |
+| ประวัติและสถานะ (แผนกคลัง) | history.html | ทุกคน |
 | รับวัตถุดิบ | receive.html | คลังวัตถุดิบ (Full), ฝ่ายผลิต (View Only), Admin (Full) |
 | Dashboard | dashboard.html | ทุกคน |
 | จัดการข้อมูล & สิทธิ์ | settings.html | Admin เท่านั้น |
@@ -53,8 +53,7 @@
   - ดูข้อมูลแผนเรียกเข้าใน `request.html` ได้เท่านั้น (View Only - ซ่อนปุ่มบันทึก/ลบ/ใส่ตะกร้า)
   - บันทึกการรับวัตถุดิบจริงและส่งอีเมล PAN สรุปใน `receive.html`
   - ดูข้อมูลประวัติสถานะใน `history.html`
-  - ดูข้อมูล PO ใน `po.html` ได้เท่านั้น (View Only - ซ่อนปุ่ม Import ข้อมูล)
-  - ไม่สามารถเปิดหน้าตั้งค่า (`settings.html`)
+  - ไม่สามารถเปิดหน้าตั้งค่า (`settings.html`) และไม่เห็นเมนู "ข้อมูล PO" (`po.html`)
 - 🛡️ **Admin**
   - มีสิทธิ์ดำเนินการทุกอย่างในระบบ รวมถึงการแก้ไขข้อมูลพนักงาน (สามารถแก้ไขรหัสพนักงาน/Username ได้)
   - นำเข้าข้อมูล PO (Import XLSX หรือดึงผ่าน SAP API) ในหน้า `po.html`
