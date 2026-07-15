@@ -27,7 +27,10 @@ window.toggleMonthlyChartMode = function(btn, mode) {
 /* ── Init ───────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', async () => {
   const fy = getCurrentFY();
-  document.getElementById('dash-fy-label').textContent = `ปีงบประมาณ ${fy - 1}/${fy}`;
+  const labelEl = document.getElementById('dash-fy-label');
+  if (labelEl) {
+    labelEl.textContent = `ปีงบประมาณ ${fy - 1}/${fy}`;
+  }
 
   await loadDashMasters(fy);
   await loadDashData();

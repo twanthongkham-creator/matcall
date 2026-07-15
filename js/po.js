@@ -262,7 +262,7 @@ function mapVendorToSupplier(vendorName) {
     return 'พี.เอส.ซี.สตาร์ช โปรดักส์';
   }
   if (v.includes('เจ้าคุณ') || v.includes('chaokhun') || v.includes('Ҥس')) {
-    return 'บจก.เจ้าคุณเกษตรพืชผล';
+    return 'เจ้าคุณเกษตรพืชผล';
   }
   if (v.includes('แปซิฟิก') || v.includes('pacific') || v.includes('ừԿԡ')) {
     return 'แปซิฟิก ชูการ์ คอร์ปอเรชั่น';
@@ -273,8 +273,8 @@ function mapVendorToSupplier(vendorName) {
   if (v.includes('purechem') || v.includes('เพียวเคม')) {
     return 'Purechem Co., Ltd.';
   }
-  if (v.includes('wgc')) {
-    return 'WGC';
+  if (v.includes('wgc') || v.includes('ดับเบิ้ลยู') || v.includes('จีซี') || v.includes('Ѻ٨ի')) {
+    return 'ดับเบิ้ลยูจีซี';
   }
   return vendorName; // fallback
 }

@@ -18,9 +18,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadRequestList();
   bindBasketEvents();
   renderBasket();
-  // FY badge
-  const fyEl = document.getElementById('topbar-fy');
-  if (fyEl) fyEl.innerHTML = `<i class="bi bi-calendar-week"></i> FY ${getCurrentFY()}`;
 });
 
 function setDefaultDeliveryDate() {
@@ -70,16 +67,15 @@ async function loadMasterData() {
 }
 
 /* ── Cascade: Plant → Material → Supplier ─────────────────── */
-function updateDynamicInputs(material) {
-  const qtyContainer = document.getElementById('qty-input-container');
-  const tankContainer = document.getElementById('tank-input-container');
-  const tankGroup = document.getElementById('tank-id-group');
-  if (!qtyContainer || !tankContainer) return;
-
-  // 1. Quantity Input Setup
+function getQtyInputHtml(material, dateStr = '') {
+  const cssClass = dateStr ? 'inp-qty-item' : '';
+  const nameId = dateStr ? '' : 'id="inp-quantity"';
+  const dataAttr = dateStr ? `data-date="${dateStr}"` : '';
+  const style = dateStr ? 'style="max-width: 120px;"' : '';
+  
   if (material === "HFS42%" || material === "Liquid Sugar") {
-    qtyContainer.innerHTML = `
-      <select class="form-control" id="inp-quantity" required>
+    return `
+      <select class="form-control ${cssClass}" ${nameId} ${dataAttr} ${style} required>
         <option value="">เลือกจำนวน...</option>
         <option value="15000">15,000</option>
         <option value="30000">30,000</option>
@@ -87,8 +83,8 @@ function updateDynamicInputs(material) {
       </select>
     `;
   } else if (material === "Bioligo IH200") {
-    qtyContainer.innerHTML = `
-      <select class="form-control" id="inp-quantity" required>
+    return `
+      <select class="form-control ${cssClass}" ${nameId} ${dataAttr} ${style} required>
         <option value=""></option>
         <option value="4">4</option>
         <option value="5">5</option>
@@ -96,17 +92,30 @@ function updateDynamicInputs(material) {
       </select>
     `;
   } else if (material === "CO2") {
-    qtyContainer.innerHTML = `
-      <select class="form-control" id="inp-quantity" required>
+    return `
+      <select class="form-control ${cssClass}" ${nameId} ${dataAttr} ${style} required>
         <option value="18000">18,000</option>
       </select>
     `;
   } else {
-    qtyContainer.innerHTML = `
-      <input type="number" class="form-control" id="inp-quantity"
-             min="0.01" step="0.01" required placeholder="0.00">
+    return `
+      <input type="number" class="form-control ${cssClass}" ${nameId} ${dataAttr} ${style} min="0.01" step="0.01" required placeholder="0.00">
     `;
   }
+}
+
+function updateDynamicInputs(material) {
+  const qtyContainer = document.getElementById('qty-input-container');
+  const tankContainer = document.getElementById('tank-input-container');
+  const tankGroup = document.getElementById('tank-id-group');
+  if (!qtyContainer || !tankContainer) return;
+
+  // 1. Quantity Input Setup
+  qtyContainer.innerHTML = getQtyInputHtml(material);
+  
+  // bind recalculate listeners
+  document.getElementById('inp-quantity')?.addEventListener('input', window.recalculatePoDeduction);
+  document.getElementById('inp-quantity')?.addEventListener('change', window.recalculatePoDeduction);
 
   // 2. Tank ID Input Setup
   if (material === "CO2") {
@@ -141,6 +150,19 @@ function updateDynamicInputs(material) {
     `;
   }
 }
+
+const SupplierMap = {
+  toSAP(dbName) {
+    if (dbName === 'บจก.เจ้าคุณเกษตรพืชผล') return 'เจ้าคุณเกษตรพืชผล';
+    if (dbName === 'WGC') return 'ดับเบิ้ลยูจีซี';
+    return dbName;
+  },
+  toDB(sapName) {
+    if (sapName === 'เจ้าคุณเกษตรพืชผล') return 'บจก.เจ้าคุณเกษตรพืชผล';
+    if (sapName === 'ดับเบิ้ลยูจีซี') return 'WGC';
+    return sapName;
+  }
+};
 
 const MatMap = {
   toDB(sapName) {
@@ -221,9 +243,10 @@ function bindFormEvents() {
       }
       selSup.innerHTML = '<option value="">เลือก Supplier...</option>';
       suppliers.forEach(s => {
+        const sapSupplier = SupplierMap.toSAP(s.supplier_name);
         const opt = document.createElement('option');
-        opt.value = s.supplier_name;
-        opt.textContent = s.supplier_name;
+        opt.value = sapSupplier;
+        opt.textContent = sapSupplier;
         opt.dataset.quota = s.remaining_quota ?? '';
         selSup.appendChild(opt);
       });
@@ -338,14 +361,84 @@ function bindFormEvents() {
     if (selectedList.length > 0) {
       if (poBadge) poBadge.style.display = 'block';
       if (pendingEl) pendingEl.textContent = Fmt.num(sumQty);
-      recalculatePoDeduction();
+      window.recalculatePoDeduction();
     }
   });
 
-  // Quantity input change -> recalculate PO deduction
+  // Unit synchronizers
+  document.getElementById('sel-unit')?.addEventListener('change', function() {
+    const selMulti = document.getElementById('sel-unit-multi');
+    if (selMulti) selMulti.value = this.value;
+  });
+  document.getElementById('sel-unit-multi')?.addEventListener('change', function() {
+    const selSingle = document.getElementById('sel-unit');
+    if (selSingle) selSingle.value = this.value;
+  });
+
+  // Date selection change → toggle single vs multi quantity inputs
+  document.getElementById('inp-delivery-date')?.addEventListener('change', function () {
+    const datesVal = this.value.trim();
+    const dates = datesVal ? datesVal.split(',').map(d => d.trim()).filter(Boolean) : [];
+    
+    const qtySingle = document.getElementById('qty-single-group');
+    const qtyMulti = document.getElementById('qty-multi-group');
+    const qtyMultiContainer = document.getElementById('qty-multi-container');
+    const inpSingle = document.getElementById('inp-quantity');
+    const material = document.getElementById('sel-material').value;
+    
+    if (dates.length <= 1) {
+      if (qtySingle) qtySingle.style.display = 'block';
+      if (qtyMulti) qtyMulti.style.display = 'none';
+      if (inpSingle) inpSingle.required = true;
+    } else {
+      if (qtySingle) qtySingle.style.display = 'none';
+      if (qtyMulti) qtyMulti.style.display = 'block';
+      if (inpSingle) inpSingle.required = false;
+      
+      // Render multiple quantity inputs with correct dropdown/input for each date
+      if (qtyMultiContainer) {
+        const dbMat = MatMap.toDB(material);
+        qtyMultiContainer.innerHTML = dates.map((d, index) => {
+          const formattedDate = Fmt.dateWithDay(d);
+          const qtyInputHtml = getQtyInputHtml(dbMat, d);
+          return `
+            <div class="multi-qty-row" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px;">
+              <span style="font-weight: 600; font-size: 13px; color: var(--text);">${formattedDate}</span>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                ${qtyInputHtml}
+                ${index === 0 ? `<button type="button" class="btn btn-teal btn-sm" id="btn-copy-qty" style="padding: 4px 8px; font-size: 11px;"><i class="bi bi-copy"></i> ใส่ทุกวัน</button>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+        
+        // Bind input and change events to recalculate
+        qtyMultiContainer.querySelectorAll('.inp-qty-item').forEach(inp => {
+          inp.addEventListener('input', window.recalculatePoDeduction);
+          inp.addEventListener('change', window.recalculatePoDeduction);
+        });
+        
+        // Bind copy-to-all button
+        document.getElementById('btn-copy-qty')?.addEventListener('click', function(e) {
+          e.preventDefault();
+          const firstVal = qtyMultiContainer.querySelector('.inp-qty-item')?.value;
+          if (firstVal) {
+            qtyMultiContainer.querySelectorAll('.inp-qty-item').forEach(inp => {
+              inp.value = firstVal;
+            });
+            window.recalculatePoDeduction();
+          }
+        });
+      }
+    }
+    
+    window.recalculatePoDeduction();
+  });
+
+  // Quantity input change for single date -> recalculate PO deduction
   document.getElementById('qty-input-container')?.addEventListener('input', function (e) {
     if (e.target && e.target.id === 'inp-quantity') {
-      recalculatePoDeduction();
+      window.recalculatePoDeduction();
     }
   });
 
@@ -358,13 +451,23 @@ function bindFormEvents() {
     const qtyInput = document.getElementById('inp-quantity');
     const deductWrap = document.getElementById('po-deduction-wrap');
     const remainingEl = document.getElementById('po-remaining-after');
+    const datesVal = document.getElementById('inp-delivery-date')?.value || '';
+    const dates = datesVal ? datesVal.split(',').map(d => d.trim()).filter(Boolean) : [];
     
-    if (!poNum || !qtyInput) {
+    if (!poNum) {
       if (deductWrap) deductWrap.style.display = 'none';
       return;
     }
     
-    const enteredQty = parseFloat(qtyInput.value) || 0;
+    let enteredQty = 0;
+    if (dates.length <= 1) {
+      enteredQty = parseFloat(qtyInput?.value) || 0;
+    } else {
+      document.querySelectorAll('.inp-qty-item').forEach(inp => {
+        enteredQty += parseFloat(inp.value) || 0;
+      });
+    }
+    
     const selectedList = activePOs.filter(p => p.po_number === poNum);
     const sumQty = selectedList.reduce((acc, curr) => acc + parseFloat(curr.qty_pending || 0), 0);
     
@@ -419,17 +522,21 @@ function addToBasket(e) {
   const plant    = document.getElementById('sel-plant').value;
   const material = document.getElementById('sel-material').value;
   const supplier = document.getElementById('sel-supplier').value;
-  const qty      = parseFloat(document.getElementById('inp-quantity').value);
-  const unit     = document.getElementById('sel-unit').value;
-  const date     = document.getElementById('inp-delivery-date').value;
+  const dateVal  = document.getElementById('inp-delivery-date').value;
 
-  if (!plant || !material || !supplier || !qty || !date) {
-    Toast.warning('กรุณากรอก โรงงาน / วัตถุดิบ / Supplier / จำนวน / วันส่งมอบ ให้ครบ');
+  if (!plant || !material || !supplier || !dateVal) {
+    Toast.warning('กรุณากรอก โรงงาน / วัตถุดิบ / Supplier / วันส่งมอบ ให้ครบ');
+    return;
+  }
+
+  const dates = dateVal.split(',').map(d => d.trim()).filter(Boolean);
+  if (dates.length === 0) {
+    Toast.warning('กรุณาเลือกวันส่งมอบ');
     return;
   }
 
   const tankId = document.getElementById('inp-tank-id')?.value?.trim();
-  if (material === "CO2" && plant === "PT" && !tankId) {
+  if (material === "CO2 Gas" && plant === "PT" && !tankId) {
     Toast.warning('กรุณาเลือก Tank ID');
     return;
   }
@@ -443,23 +550,43 @@ function addToBasket(e) {
   }
 
   const plantObj = reqPlants.find(p => p.plant_code === plant);
-  const dates = date.split(',').map(d => d.trim()).filter(Boolean);
+  const unit = document.getElementById('sel-unit').value;
+  const itemsToAdd = [];
 
-  if (dates.length === 0) {
-    Toast.warning('กรุณาเลือกวันส่งมอบ');
-    return;
+  if (dates.length <= 1) {
+    const qty = parseFloat(document.getElementById('inp-quantity').value);
+    if (!qty || qty <= 0) {
+      Toast.warning('กรุณากรอกจำนวนเรียกเข้า');
+      return;
+    }
+    itemsToAdd.push({ date: dates[0], qty: qty });
+  } else {
+    let allValid = true;
+    document.querySelectorAll('.inp-qty-item').forEach(inp => {
+      const qty = parseFloat(inp.value);
+      const d = inp.dataset.date;
+      if (!qty || qty <= 0) {
+        allValid = false;
+      } else {
+        itemsToAdd.push({ date: d, qty: qty });
+      }
+    });
+    if (!allValid) {
+      Toast.warning('กรุณากรอกจำนวนให้ครบทุกวัน');
+      return;
+    }
   }
 
-  dates.forEach(d => {
+  itemsToAdd.forEach(item => {
     basket.push({
       plant,
       plant_name:    plantObj?.plant_name ?? plant,
       material_name: material,
       supplier_name: supplier,
-      quantity:      qty,
+      quantity:      item.qty,
       unit,
-      delivery_date: d,
-      tank_id:       (material === "CO2" ? document.getElementById('inp-tank-id')?.value?.trim() : null) || null,
+      delivery_date: item.date,
+      tank_id:       (material === "CO2 Gas" ? document.getElementById('inp-tank-id')?.value?.trim() : null) || null,
       po_number:     poNum,
       target_week:   null,
       remark:        null,
@@ -471,13 +598,21 @@ function addToBasket(e) {
   // Clear transient fields; keep plant/material/supplier for quick repeat entry
   if (document.getElementById('inp-quantity')) {
     document.getElementById('inp-quantity').value = '';
-    // trigger input event to clear the PO deduction display
     document.getElementById('inp-quantity').dispatchEvent(new Event('input'));
   }
+  
+  // Clear multi inputs
+  document.querySelectorAll('.inp-qty-item').forEach(inp => {
+    inp.value = '';
+  });
+  
   if (document.getElementById('inp-tank-id')) document.getElementById('inp-tank-id').value = '';
+  
+  // Reset date picker and trigger change to reset quantity layout
   setDefaultDeliveryDate();
+  document.getElementById('inp-delivery-date')?.dispatchEvent(new Event('change'));
 
-  Toast.success(`เพิ่มลงตะกร้าแล้ว ${dates.length} รายการ`);
+  Toast.success(`เพิ่มลงตะกร้าแล้ว ${itemsToAdd.length} รายการ`);
 }
 
 function renderBasketQtyInput(item, i) {
@@ -499,7 +634,7 @@ function renderBasketQtyInput(item, i) {
         <option value="6" ${item.quantity === 6 ? 'selected' : ''}>6</option>
       </select>
     `;
-  } else if (mat === "CO2") {
+  } else if (mat === "CO2 Gas") {
     return `
       <select class="form-control form-control-sm d-inline-block" style="width: 75px; padding: 2px 6px; font-size: 12px; height: 30px;" onchange="updateBasketQty(${i}, this.value)">
         <option value="18000" ${item.quantity === 18000 ? 'selected' : ''}>18,000</option>
@@ -520,7 +655,7 @@ window.updateBasketQty = function (i, val) {
 };
 
 function renderBasketTankInput(item, i) {
-  if (item.material_name === "CO2") {
+  if (item.material_name === "CO2 Gas") {
     return `
       <select class="form-control form-control-sm" style="width: 130px; padding: 2px 6px; font-size: 12px; height: 30px;" onchange="updateBasketTankId(${i}, this.value)">
         <option value=""></option>
@@ -561,14 +696,18 @@ function renderBasket() {
     return;
   }
 
+  const hasCo2 = basket.some(item => item.material_name === "CO2 Gas");
+  const thTank = document.getElementById('th-basket-tank-id');
+  if (thTank) thTank.style.display = hasCo2 ? '' : 'none';
+
   tbody.innerHTML = basket.map((item, i) => `
-    <tr class="${item.material_name !== 'CO2' ? 'hide-tank' : ''}">
+    <tr class="${item.material_name !== 'CO2 Gas' ? 'hide-tank' : ''}">
       <td class="td-center" style="color:var(--text-muted);font-size:12px">${i + 1}</td>
       <td><strong>${item.plant_name}</strong></td>
       <td style="white-space:nowrap">${Fmt.dateWithDay(item.delivery_date)}</td>
       <td>${item.material_name}</td>
       <td>${item.supplier_name}</td>
-      <td>${renderBasketTankInput(item, i)}</td>
+      <td style="display: ${hasCo2 ? '' : 'none'}">${renderBasketTankInput(item, i)}</td>
       <td class="td-right">
         <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
           ${renderBasketQtyInput(item, i)}
@@ -618,8 +757,8 @@ async function saveBasket() {
     try {
       await API.createCalloffPlan({
         plant:         item.plant,
-        material_name: item.material_name,
-        supplier_name: item.supplier_name,
+        material_name: MatMap.toDB(item.material_name),
+        supplier_name: SupplierMap.toDB(item.supplier_name),
         delivery_date: item.delivery_date,
         quantity:      item.quantity,
         unit:          item.unit,
