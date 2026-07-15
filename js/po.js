@@ -93,6 +93,7 @@ function renderPOTable() {
         <td><strong>${p.po_number}</strong></td>
         <td>${p.po_item}</td>
         <td><span class="badge bg-secondary">${p.plant}</span></td>
+        <td><strong>${p.supplier_name || '-'}</strong></td>
         <td><code>${p.material_code}</code></td>
         <td><strong>${p.material_name}</strong></td>
         <td class="td-right">${Fmt.num(p.order_qty)}</td>
@@ -189,16 +190,17 @@ async function parseAndSaveExcel(arrayBuffer) {
     const rawPlant = String(getVal(18) || '');
     const orderQty = parseFloat(getVal(21) || 0);
     const qtyPending = parseFloat(getVal(23) || 0);
+    const rawVendor = String(getVal(12) || '');
     const delivCompl = String(getVal(34) || '').trim();
 
     // Clean material code (strip leading zeros)
     const matCode = rawMaterial.replace(/^0+/, '');
 
-    // Map material
+    // Map material to exact SAP name
     let materialName = '';
-    if (matCode === '120001706') materialName = 'CO2';
-    else if (matCode === '120001687') materialName = 'Liquid Sugar';
-    else if (matCode === '120001688') materialName = 'HFS42%';
+    if (matCode === '120001706') materialName = 'CO2 Gas';
+    else if (matCode === '120001687') materialName = 'น้ำตาลเหลว';
+    else if (matCode === '120001688') materialName = 'High Fructose Syrup 42%';
     else continue; // Skip other materials
 
     // Map plant
@@ -209,6 +211,9 @@ async function parseAndSaveExcel(arrayBuffer) {
     else if (rawPlant === '3204') plant = 'NS';
     else if (rawPlant === '3205') plant = 'SR';
     else continue; // Skip other plants
+
+    // Map vendor to MATCALL database supplier names
+    const supplierName = mapVendorToSupplier(rawVendor);
 
     // Date formatting
     let docDate = null;
@@ -229,6 +234,7 @@ async function parseAndSaveExcel(arrayBuffer) {
       plant: plant,
       material_code: matCode,
       material_name: materialName,
+      supplier_name: supplierName,
       order_qty: orderQty,
       qty_pending: qtyPending,
       is_completed: (delivCompl === 'X' || qtyPending <= 0),
@@ -243,4 +249,32 @@ async function parseAndSaveExcel(arrayBuffer) {
   // Upload to Supabase / Local storage fallback
   await API.savePOs(pos);
   await loadPOs();
+}
+
+function mapVendorToSupplier(vendorName) {
+  if (!vendorName) return '';
+  const v = vendorName.toString().trim().toLowerCase();
+  
+  if (v.includes('linde') || v.includes('ลินเด้') || v.includes('special gas') || v.includes('Թ')) {
+    return 'ลินเด้ (ประเทศไทย)';
+  }
+  if (v.includes('psc') || v.includes('พี.เอส.ซี') || v.includes('สตาร์ช') || v.includes('p.s.c') || v.includes('ʵ') || v.includes('ôѡ')) {
+    return 'พี.เอส.ซี.สตาร์ช โปรดักส์';
+  }
+  if (v.includes('เจ้าคุณ') || v.includes('chaokhun') || v.includes('Ҥس')) {
+    return 'บจก.เจ้าคุณเกษตรพืชผล';
+  }
+  if (v.includes('แปซิฟิก') || v.includes('pacific') || v.includes('ừԿԡ')) {
+    return 'แปซิฟิก ชูการ์ คอร์ปอเรชั่น';
+  }
+  if (v.includes('ไทยรุ่งเรือง') || v.includes('thai roong') || v.includes('รุ่งเรือง') || v.includes('ͧص')) {
+    return 'ไทยรุ่งเรืองอุตสาหกรรม';
+  }
+  if (v.includes('purechem') || v.includes('เพียวเคม')) {
+    return 'Purechem Co., Ltd.';
+  }
+  if (v.includes('wgc')) {
+    return 'WGC';
+  }
+  return vendorName; // fallback
 }

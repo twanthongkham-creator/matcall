@@ -142,6 +142,21 @@ function updateDynamicInputs(material) {
   }
 }
 
+const MatMap = {
+  toDB(sapName) {
+    if (sapName === 'CO2 Gas') return 'CO2';
+    if (sapName === 'น้ำตาลเหลว') return 'Liquid Sugar';
+    if (sapName === 'High Fructose Syrup 42%') return 'HFS42%';
+    return sapName;
+  },
+  toSAP(dbName) {
+    if (dbName === 'CO2') return 'CO2 Gas';
+    if (dbName === 'Liquid Sugar' || dbName === 'Liquid Sugar ') return 'น้ำตาลเหลว';
+    if (dbName === 'HFS42%') return 'High Fructose Syrup 42%';
+    return dbName;
+  }
+};
+
 function bindFormEvents() {
   // Plant change → load materials
   document.getElementById('sel-plant')?.addEventListener('change', async function () {
@@ -159,14 +174,14 @@ function bindFormEvents() {
     try {
       let mats = await API.getMaterials(plant);
       if (mats.length === 0) {
-        // Fallback to PT if selected plant has no registered materials
         mats = await API.getMaterials('PT');
       }
       selMat.innerHTML = '<option value="">เลือกวัตถุดิบ...</option>';
       mats.forEach(m => {
+        const sapName = MatMap.toSAP(m);
         const opt = document.createElement('option');
-        opt.value = m;
-        opt.textContent = m;
+        opt.value = sapName;
+        opt.textContent = sapName;
         selMat.appendChild(opt);
       });
     } catch (e) {
@@ -175,23 +190,84 @@ function bindFormEvents() {
     }
   });
 
-  // Material change → load suppliers & POs
+  // Material change → load suppliers
   document.getElementById('sel-material')?.addEventListener('change', async function () {
     const plant    = document.getElementById('sel-plant').value;
     const material = this.value;
     const selSup   = document.getElementById('sel-supplier');
     selSup.innerHTML = '<option value="">กำลังโหลด...</option>';
     clearQuota();
-    updateDynamicInputs(material);
+    
+    // Clear and hide PO dropdown (Supplier chosen before PO)
+    const poGroup = document.getElementById('po-group');
+    if (poGroup) poGroup.style.display = 'none';
+    const selPo = document.getElementById('sel-po');
+    if (selPo) {
+      selPo.required = false;
+      selPo.innerHTML = '<option value="">เลือกหมายเลข PO...</option>';
+    }
+    const poBadge = document.getElementById('po-info-badge');
+    if (poBadge) poBadge.style.display = 'none';
+    
+    updateDynamicInputs(MatMap.toDB(material));
+    if (!material) {
+      selSup.innerHTML = '<option value="">เลือกวัตถุดิบก่อน</option>';
+      return;
+    }
+    try {
+      let suppliers = await API.getSupplierByMaterial(plant, MatMap.toDB(material));
+      if (suppliers.length === 0) {
+        suppliers = await API.getSupplierByMaterial('PT', MatMap.toDB(material));
+      }
+      selSup.innerHTML = '<option value="">เลือก Supplier...</option>';
+      suppliers.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.supplier_name;
+        opt.textContent = s.supplier_name;
+        opt.dataset.quota = s.remaining_quota ?? '';
+        selSup.appendChild(opt);
+      });
+      
+      // Auto-select Linde if material is CO2 Gas
+      if (material === "CO2 Gas") {
+        selSup.value = "ลินเด้ (ประเทศไทย)";
+        selSup.dispatchEvent(new Event('change'));
+      }
+    } catch (e) {
+      selSup.innerHTML = '<option value="">โหลดไม่สำเร็จ</option>';
+      Toast.error('โหลด Supplier ไม่สำเร็จ');
+    }
+  });
 
-    // PO Group Handling
+  // Supplier change → show quota & load POs
+  document.getElementById('sel-supplier')?.addEventListener('change', async function () {
+    const plant = document.getElementById('sel-plant').value;
+    const material = document.getElementById('sel-material').value;
+    const supplierName = this.value;
+    
+    const opt   = this.options[this.selectedIndex];
+    const quota = opt?.dataset?.quota;
+    const el    = document.getElementById('quota-info');
+    
+    if (el) {
+      if (!supplierName || quota === '' || quota === undefined || quota === null) {
+        el.textContent = '';
+        el.className = 'quota-info';
+      } else {
+        const q = parseFloat(quota);
+        el.className = `quota-info${q <= 0 ? ' warn' : ''}`;
+        el.innerHTML = `<i class="bi bi-info-circle"></i> Remaining quota: <strong>${Fmt.num(q)}</strong>`;
+      }
+    }
+
+    // PO Group Handling (Supplier chosen before PO)
     const poGroup = document.getElementById('po-group');
     const selPo = document.getElementById('sel-po');
     const poBadge = document.getElementById('po-info-badge');
     const poDeduct = document.getElementById('po-deduction-wrap');
 
     if (poGroup && selPo) {
-      if (['CO2', 'Liquid Sugar', 'HFS42%'].includes(material)) {
+      if (['CO2 Gas', 'น้ำตาลเหลว', 'High Fructose Syrup 42%'].includes(material) && supplierName) {
         poGroup.style.display = 'block';
         selPo.required = true;
         selPo.innerHTML = '<option value="">กำลังโหลด PO...</option>';
@@ -199,16 +275,28 @@ function bindFormEvents() {
         if (poDeduct) poDeduct.style.display = 'none';
 
         try {
-          activePOs = await API.getPOs(plant, material);
+          // Fetch POs filtered by supplierName
+          activePOs = await API.getPOs(plant, material, supplierName);
           const activeList = activePOs.filter(p => !p.is_completed && p.qty_pending > 0);
-          selPo.innerHTML = '<option value="">เลือกหมายเลข PO...</option>';
+          
+          // Group by po_number and sum qty_pending
+          const poMap = {};
           activeList.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p.po_number;
-            opt.textContent = `${p.po_number} (คงเหลือ: ${Fmt.num(p.qty_pending)} kg)`;
-            selPo.appendChild(opt);
+            if (!poMap[p.po_number]) {
+              poMap[p.po_number] = 0;
+            }
+            poMap[p.po_number] += parseFloat(p.qty_pending);
           });
-          if (activeList.length === 0) {
+
+          selPo.innerHTML = '<option value="">เลือกหมายเลข PO...</option>';
+          for (const [poNum, sumQty] of Object.entries(poMap)) {
+            const opt = document.createElement('option');
+            opt.value = poNum;
+            opt.textContent = `${poNum} (คงเหลือยอดรวม: ${Fmt.num(sumQty)} kg)`;
+            selPo.appendChild(opt);
+          }
+          
+          if (Object.keys(poMap).length === 0) {
             selPo.innerHTML = '<option value="">ไม่มีหมายเลข PO ที่ใช้งานได้</option>';
           }
         } catch (err) {
@@ -223,35 +311,6 @@ function bindFormEvents() {
         if (poDeduct) poDeduct.style.display = 'none';
         activePOs = [];
       }
-    }
-
-    if (!material) {
-      selSup.innerHTML = '<option value="">เลือกวัตถุดิบก่อน</option>';
-      return;
-    }
-    try {
-      let suppliers = await API.getSupplierByMaterial(plant, material);
-      if (suppliers.length === 0) {
-        // Fallback to PT if selected plant/material has no registered suppliers
-        suppliers = await API.getSupplierByMaterial('PT', material);
-      }
-      selSup.innerHTML = '<option value="">เลือก Supplier...</option>';
-      suppliers.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s.supplier_name;
-        opt.textContent = s.supplier_name;
-        opt.dataset.quota = s.remaining_quota ?? '';
-        selSup.appendChild(opt);
-      });
-      
-      // Auto-select Linde if material is CO2
-      if (material === "CO2") {
-        selSup.value = "ลินเด้ (ประเทศไทย)";
-        selSup.dispatchEvent(new Event('change'));
-      }
-    } catch (e) {
-      selSup.innerHTML = '<option value="">โหลดไม่สำเร็จ</option>';
-      Toast.error('โหลด Supplier ไม่สำเร็จ');
     }
   });
 
@@ -268,10 +327,13 @@ function bindFormEvents() {
       return;
     }
     
-    const selectedPo = activePOs.find(p => p.po_number === poNum);
-    if (selectedPo) {
+    // Sum up pending qty for the selected PO
+    const selectedList = activePOs.filter(p => p.po_number === poNum);
+    const sumQty = selectedList.reduce((acc, curr) => acc + parseFloat(curr.qty_pending || 0), 0);
+    
+    if (selectedList.length > 0) {
       if (poBadge) poBadge.style.display = 'block';
-      if (pendingEl) pendingEl.textContent = Fmt.num(selectedPo.qty_pending);
+      if (pendingEl) pendingEl.textContent = Fmt.num(sumQty);
       recalculatePoDeduction();
     }
   });
@@ -281,22 +343,6 @@ function bindFormEvents() {
     if (e.target && e.target.id === 'inp-quantity') {
       recalculatePoDeduction();
     }
-  });
-
-  // Supplier change → show quota
-  document.getElementById('sel-supplier')?.addEventListener('change', function () {
-    const opt   = this.options[this.selectedIndex];
-    const quota = opt?.dataset?.quota;
-    const el    = document.getElementById('quota-info');
-    if (!el) return;
-    if (quota === '' || quota === undefined || quota === null) {
-      el.textContent = '';
-      el.className = 'quota-info';
-      return;
-    }
-    const q = parseFloat(quota);
-    el.className = `quota-info${q <= 0 ? ' warn' : ''}`;
-    el.innerHTML = `<i class="bi bi-info-circle"></i> Remaining quota: <strong>${Fmt.num(q)}</strong>`;
   });
 
   // Form submit → add to basket
@@ -315,10 +361,11 @@ function bindFormEvents() {
     }
     
     const enteredQty = parseFloat(qtyInput.value) || 0;
-    const selectedPo = activePOs.find(p => p.po_number === poNum);
+    const selectedList = activePOs.filter(p => p.po_number === poNum);
+    const sumQty = selectedList.reduce((acc, curr) => acc + parseFloat(curr.qty_pending || 0), 0);
     
-    if (selectedPo && enteredQty > 0) {
-      const remaining = selectedPo.qty_pending - enteredQty;
+    if (selectedList.length > 0 && enteredQty > 0) {
+      const remaining = sumQty - enteredQty;
       if (deductWrap) deductWrap.style.display = 'inline';
       if (remainingEl) {
         remainingEl.textContent = Fmt.num(remaining);

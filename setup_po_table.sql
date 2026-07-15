@@ -7,7 +7,8 @@ create table if not exists po_data (
   po_item          text not null,
   plant            text not null, -- PT, KR, NS, SR, CH
   material_code    text not null, -- 120001706, 120001687, 120001688
-  material_name    text not null, -- CO2, Liquid Sugar, HFS42%
+  material_name    text not null, -- CO2 Gas, น้ำตาลเหลว, High Fructose Syrup 42%
+  supplier_name    text,          -- ลินเด้ (ประเทศไทย), ไทยรุ่งเรืองอุตสาหกรรม, etc.
   qty_pending      numeric(14,2) not null default 0,
   order_qty        numeric(14,2) not null default 0,
   is_completed     boolean not null default false,
@@ -29,3 +30,6 @@ create index if not exists idx_po_number on po_data(po_number);
 
 -- Alter calloff_plan table to store the selected PO number
 alter table calloff_plan add column if not exists po_number text;
+
+-- Add supplier_name column if table already exists
+alter table po_data add column if not exists supplier_name text;

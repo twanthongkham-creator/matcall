@@ -345,12 +345,13 @@ const API = {
   },
 
   /* ── PO Data ── */
-  async getPOs(plantCode = null, materialName = null) {
+  async getPOs(plantCode = null, materialName = null, supplierName = null) {
     try {
       let q = _supabase.from('po_data').select('*');
       if (plantCode) q = q.eq('plant', plantCode);
       if (materialName) q = q.eq('material_name', materialName);
-      q = q.order('po_number', { ascending: true });
+      if (supplierName) q = q.eq('supplier_name', supplierName);
+      q = q.order('po_number', { ascending: true }).order('po_item', { ascending: true });
       const { data, error } = await q;
       if (error) throw error;
       return data ?? [];
@@ -359,6 +360,7 @@ const API = {
       let localPOs = JSON.parse(localStorage.getItem('fallback_pos') || '[]');
       if (plantCode) localPOs = localPOs.filter(p => p.plant === plantCode);
       if (materialName) localPOs = localPOs.filter(p => p.material_name === materialName);
+      if (supplierName) localPOs = localPOs.filter(p => p.supplier_name === supplierName);
       return localPOs;
     }
   },
@@ -382,34 +384,66 @@ const API = {
   },
   
   async updatePoPendingQty(poNumber, materialName, qtyDeducted) {
+    let remainingToDeduct = parseFloat(qtyDeducted) || 0;
+    if (remainingToDeduct <= 0) return;
+
     try {
+      // Fetch all active items for this PO and material, sorted by po_item
       const { data, error } = await _supabase.from('po_data')
         .select('*')
         .eq('po_number', poNumber)
         .eq('material_name', materialName)
         .eq('is_completed', false)
-        .limit(1);
+        .order('po_item', { ascending: true });
+        
       if (error) throw error;
+      
       if (data && data.length > 0) {
-        const poItem = data[0];
-        const newPending = Math.max(0, parseFloat(poItem.qty_pending) - parseFloat(qtyDeducted));
-        const isCompleted = newPending <= 0;
-        await _supabase.from('po_data')
-          .update({ qty_pending: newPending, is_completed: isCompleted, updated_at: new Date().toISOString() })
-          .eq('id', poItem.id);
+        for (const poItem of data) {
+          if (remainingToDeduct <= 0) break;
+          const currentPending = parseFloat(poItem.qty_pending) || 0;
+          
+          if (currentPending > 0) {
+            const deduct = Math.min(currentPending, remainingToDeduct);
+            const newPending = Math.max(0, currentPending - deduct);
+            const isCompleted = newPending <= 0;
+            
+            await _supabase.from('po_data')
+              .update({ qty_pending: newPending, is_completed: isCompleted, updated_at: new Date().toISOString() })
+              .eq('id', poItem.id);
+              
+            remainingToDeduct -= deduct;
+          }
+        }
       }
     } catch (e) {
       console.warn("Table po_data error during PO qty deduction update", e);
     }
-    // Update local storage fallback as well
+    
+    // Always update local storage fallback as well
     let localPOs = JSON.parse(localStorage.getItem('fallback_pos') || '[]');
-    const idx = localPOs.findIndex(p => p.po_number === poNumber && p.material_name === materialName && !p.is_completed);
-    if (idx !== -1) {
-      const newPending = Math.max(0, parseFloat(localPOs[idx].qty_pending) - parseFloat(qtyDeducted));
-      localPOs[idx].qty_pending = newPending;
-      localPOs[idx].is_completed = newPending <= 0;
-      localStorage.setItem('fallback_pos', JSON.stringify(localPOs));
+    let localRemaining = parseFloat(qtyDeducted) || 0;
+    
+    // Sort local POs to ensure we deduct from items in order
+    localPOs.sort((a, b) => {
+      if (a.po_number !== b.po_number) return a.po_number.localeCompare(b.po_number);
+      return a.po_item.localeCompare(b.po_item);
+    });
+    
+    for (let i = 0; i < localPOs.length; i++) {
+      if (localRemaining <= 0) break;
+      const p = localPOs[i];
+      if (p.po_number === poNumber && p.material_name === materialName && !p.is_completed) {
+        const currentPending = parseFloat(p.qty_pending) || 0;
+        if (currentPending > 0) {
+          const deduct = Math.min(currentPending, localRemaining);
+          p.qty_pending = Math.max(0, currentPending - deduct);
+          p.is_completed = p.qty_pending <= 0;
+          localRemaining -= deduct;
+        }
+      }
     }
+    localStorage.setItem('fallback_pos', JSON.stringify(localPOs));
   },
 };
 
