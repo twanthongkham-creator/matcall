@@ -10,6 +10,15 @@ let activePOs = [];   // loaded POs for selected plant/material
 let currentPage = 1;
 const pageSize  = 20;
 
+// Bioligo (IMO) is called off in IBC, but its PO (po_data.qty_pending) is
+// tracked in KG like every other PO material. 1 IBC = 1,350 KG.
+const BIOLIGO_IMO_KG_PER_IBC = 1350;
+// Convert an entered/basket quantity to the KG amount to deduct from the PO.
+// Only Bioligo (IMO) needs conversion; everything else is already in KG.
+function toPoDeductionKg(material, qty) {
+  return MatMap.toDB(material) === 'Bioligo IMO' ? (parseFloat(qty) || 0) * BIOLIGO_IMO_KG_PER_IBC : (parseFloat(qty) || 0);
+}
+
 /* ── Init ──────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', async () => {
   setDefaultDeliveryDate();
@@ -123,6 +132,7 @@ function getQtyInputHtml(material, dateStr = '', includeUnitLabel = true) {
     : '';
 
   const isHfsOrSugar = material === "HFS42%" || material === "Liquid Sugar" || material.includes("120001687") || material.includes("120001688");
+  const isBioligoImo = material === "Bioligo IMO" || material.includes("120001474");
   if (isHfsOrSugar) {
     return `
       <select class="form-control ${cssClass}" ${nameId} ${dataAttr} ${style} required>
@@ -130,6 +140,18 @@ function getQtyInputHtml(material, dateStr = '', includeUnitLabel = true) {
         <option value="15000">15,000</option>
         <option value="30000">30,000</option>
         <option value="60000">60,000</option>
+      </select>
+      ${unitSpan}
+    `;
+  } else if (isBioligoImo) {
+    // IBC-based quantity; each option also shows the KG equivalent that will
+    // actually be deducted from the PO (1 IBC = 1,350 KG).
+    return `
+      <select class="form-control ${cssClass}" ${nameId} ${dataAttr} ${style} required>
+        <option value="">เลือกจำนวน...</option>
+        <option value="4">4 (${Fmt.num(4 * BIOLIGO_IMO_KG_PER_IBC)} KG)</option>
+        <option value="5">5 (${Fmt.num(5 * BIOLIGO_IMO_KG_PER_IBC)} KG)</option>
+        <option value="6">6 (${Fmt.num(6 * BIOLIGO_IMO_KG_PER_IBC)} KG)</option>
       </select>
       ${unitSpan}
     `;
@@ -158,6 +180,25 @@ function getQtyInputHtml(material, dateStr = '', includeUnitLabel = true) {
   }
 }
 
+// Reusable Tank ID <select> markup.
+// dateStr === '' -> single-date mode (id="inp-tank-id")
+// dateStr set    -> multi-date mode (class="inp-tank-item", data-date="...")
+function getTankInputHtml(dateStr = '', isRequired = false) {
+  const cssClass = dateStr ? 'inp-tank-item' : '';
+  const idAttr = dateStr ? '' : 'id="inp-tank-id"';
+  const dataAttr = dateStr ? `data-date="${dateStr}"` : '';
+  const style = dateStr ? 'style="max-width: 180px;"' : '';
+  return `
+    <select class="form-control ${cssClass}" ${idAttr} ${dataAttr} ${style} ${isRequired ? 'required' : ''}>
+      <option value="">${isRequired ? 'เลือก Tank ID...' : 'เลือก Tank ID (ไม่บังคับ)...'}</option>
+      <option value="ถังลินเด้ (CH0011)">ถังลินเด้ (CH0011)</option>
+      <option value="ถังแพรกซ์แอร์ (CH0111)">ถังแพรกซ์แอร์ (CH0111)</option>
+      <option value="ถังแพรกซ์แอร์ (CH0112)">ถังแพรกซ์แอร์ (CH0112)</option>
+      <option value="ถังแพรกซ์แอร์ (PCH0111)">ถังแพรกซ์แอร์ (PCH0111)</option>
+    </select>
+  `;
+}
+
 function updateDynamicInputs(material) {
   const qtyContainer = document.getElementById('qty-input-container');
   const tankContainer = document.getElementById('tank-input-container');
@@ -173,11 +214,12 @@ function updateDynamicInputs(material) {
   document.getElementById('inp-quantity')?.addEventListener('input', window.recalculatePoDeduction);
   document.getElementById('inp-quantity')?.addEventListener('change', window.recalculatePoDeduction);
 
-  // 2. Tank ID Input Setup
+  // 2. Tank ID Input Setup (single-date mode only; multi-date mode renders its
+  // own per-date Tank ID dropdowns inside #qty-multi-container instead)
   if (material === "CO2" || material.includes("120001706")) {
     const plant = document.getElementById('sel-plant')?.value;
     const isRequired = (plant === "PT");
-    
+
     if (tankGroup) {
       tankGroup.style.display = 'block';
       const label = tankGroup.querySelector('.form-label');
@@ -186,15 +228,7 @@ function updateDynamicInputs(material) {
         else label.classList.remove('required');
       }
     }
-    tankContainer.innerHTML = `
-      <select class="form-control" id="inp-tank-id" ${isRequired ? 'required' : ''}>
-        <option value="">${isRequired ? 'เลือก Tank ID...' : 'เลือก Tank ID (ไม่บังคับ)...'}</option>
-        <option value="ถังลินเด้ (CH0011)">ถังลินเด้ (CH0011)</option>
-        <option value="ถังแพรกซ์แอร์ (CH0111)">ถังแพรกซ์แอร์ (CH0111)</option>
-        <option value="ถังแพรกซ์แอร์ (CH0112)">ถังแพรกซ์แอร์ (CH0112)</option>
-        <option value="ถังแพรกซ์แอร์ (PCH0111)">ถังแพรกซ์แอร์ (PCH0111)</option>
-      </select>
-    `;
+    tankContainer.innerHTML = getTankInputHtml('', isRequired);
   } else {
     if (tankGroup) {
       tankGroup.style.display = 'none';
@@ -233,12 +267,14 @@ const MatMap = {
     if (sapName === '120001706 CO2 Gas' || sapName === 'CO2 Gas') return 'CO2';
     if (sapName === '120001687 น้ำตาลเหลว' || sapName === 'น้ำตาลเหลว') return 'Liquid Sugar';
     if (sapName === '120001688 High Fructose Syrup 42%' || sapName === 'High Fructose Syrup 42%') return 'HFS42%';
+    if (sapName === '120001474 Bioligo (IMO)' || sapName === 'Bioligo (IMO)') return 'Bioligo IMO';
     return sapName;
   },
   toSAP(dbName) {
     if (dbName === 'CO2') return '120001706 CO2 Gas';
     if (dbName === 'Liquid Sugar' || dbName === 'Liquid Sugar ') return '120001687 น้ำตาลเหลว';
     if (dbName === 'HFS42%') return '120001688 High Fructose Syrup 42%';
+    if (dbName === 'Bioligo IMO') return '120001474 Bioligo (IMO)';
     return dbName;
   }
 };
@@ -364,7 +400,9 @@ function bindFormEvents() {
     const poDeduct = document.getElementById('po-deduction-wrap');
 
     if (poGroup && selPo) {
-      const isAllowedMaterial = ['120001706 CO2 Gas', 'CO2 Gas', '120001687 น้ำตาลเหลว', 'น้ำตาลเหลว', '120001688 High Fructose Syrup 42%', 'High Fructose Syrup 42%'].includes(material);
+      // Normalized so this covers both the SAP-coded and bare forms of each
+      // PO-tracked material, regardless of which form the select's raw value uses.
+      const isAllowedMaterial = ['CO2', 'Liquid Sugar', 'HFS42%', 'Bioligo IMO'].includes(MatMap.toDB(material));
       if (isAllowedMaterial && supplierName) {
         poGroup.style.display = 'block';
         selPo.required = true;
@@ -373,8 +411,12 @@ function bindFormEvents() {
         if (poDeduct) poDeduct.style.display = 'none';
 
         try {
-          // Fetch POs filtered by supplierName - pass SAP values directly
-          activePOs = await API.getPOs(plant, material, supplierName);
+          // Fetch POs filtered by supplierName.
+          // po_data.material_name is always stored with the SAP code prefix
+          // (e.g. "120001706 CO2 Gas"), but the material select's value is the
+          // bare name (e.g. "CO2 Gas"). Convert via MatMap so the query matches.
+          const poMaterialName = MatMap.toSAP(MatMap.toDB(material));
+          activePOs = await API.getPOs(plant, poMaterialName, supplierName);
           const activeList = activePOs.filter(p => !p.is_completed && p.qty_pending > 0);
           
           // Group by po_number and sum qty_pending
@@ -454,19 +496,28 @@ function bindFormEvents() {
   document.getElementById('inp-delivery-date')?.addEventListener('change', function () {
     const datesVal = this.value.trim();
     const dates = datesVal ? datesVal.split(',').map(d => d.trim()).filter(Boolean) : [];
-    
+
     const qtySingle = document.getElementById('qty-single-group');
     const qtyMulti = document.getElementById('qty-multi-group');
     const qtyMultiContainer = document.getElementById('qty-multi-container');
     const inpSingle = document.getElementById('inp-quantity');
-    const material = document.getElementById('sel-material').value;
-    
+    const plant = document.getElementById('sel-plant')?.value;
+    // Normalize to the short DB form ('CO2', 'HFS42%', 'Liquid Sugar', ...) so
+    // matching stays correct regardless of whether the select's raw value has
+    // the SAP code prefix or not.
+    const material = MatMap.toDB(document.getElementById('sel-material').value);
+    const isCO2 = material === 'CO2';
+    const tankGroup = document.getElementById('tank-id-group');
+
     if (dates.length <= 1) {
       if (qtySingle) qtySingle.style.display = 'block';
       if (qtyMulti) qtyMulti.style.display = 'none';
       if (inpSingle) {
         inpSingle.required = true;
       }
+      // Restore the single global Tank ID field (multi-date mode hides it
+      // in favor of per-date Tank ID selects below).
+      if (tankGroup) tankGroup.style.display = isCO2 ? 'block' : 'none';
     } else {
       if (qtySingle) qtySingle.style.display = 'none';
       if (qtyMulti) qtyMulti.style.display = 'block';
@@ -474,30 +525,53 @@ function bindFormEvents() {
         inpSingle.required = false;
         inpSingle.value = ''; // clear hidden single input value
       }
-      
-      // Render multiple quantity inputs with correct dropdown/input for each date
+      // CO2 needs a Tank ID per delivery date, not one shared value, so hide
+      // the single global Tank ID field while multi-date rows are showing.
+      if (tankGroup) tankGroup.style.display = 'none';
+
+      // Render multiple quantity (+ Tank ID for CO2) inputs — one compact
+      // row per date, left to right. Copy buttons live once in the header
+      // (not repeated per row) so every row stays the same height.
       if (qtyMultiContainer) {
+        const isTankRequired = isCO2 && plant === 'PT';
+        const multiHeader = document.getElementById('qty-multi-header');
+        if (multiHeader) {
+          multiHeader.innerHTML = `
+            <button type="button" class="btn btn-teal btn-sm" id="btn-copy-qty" style="padding: 3px 8px; font-size: 11px;"><i class="bi bi-copy"></i> จำนวนทุกวัน</button>
+            ${isCO2 ? `<button type="button" class="btn btn-outline-primary btn-sm" id="btn-copy-tank" style="padding: 3px 8px; font-size: 11px;"><i class="bi bi-copy"></i> Tank ID ทุกวัน</button>` : ''}
+          `;
+        }
+
         qtyMultiContainer.innerHTML = dates.map((d, index) => {
           const formattedDate = Fmt.dateWithDay(d);
           const qtyInputHtml = getQtyInputHtml(material, d);
+          const tankInputHtml = isCO2 ? getTankInputHtml(d, isTankRequired) : '';
           return `
-            <div class="multi-qty-row" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px;">
-              <span style="font-weight: 600; font-size: 13px; color: var(--text);">${formattedDate}</span>
+            <div class="multi-qty-row" style="display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding: 7px 4px; ${index < dates.length - 1 ? 'border-bottom: 1px solid var(--border);' : ''}">
+              <span style="min-width: 150px; font-weight: 700; font-size: 13px; color: var(--text); display: flex; align-items: center; gap: 4px;">
+                <i class="bi bi-calendar3" style="color: var(--teal);"></i>${formattedDate}
+              </span>
               <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 12px; color: var(--text-muted); white-space: nowrap;">จำนวน</span>
                 ${qtyInputHtml}
-                ${index === 0 ? `<button type="button" class="btn btn-teal btn-sm" id="btn-copy-qty" style="padding: 4px 8px; font-size: 11px;"><i class="bi bi-copy"></i> ใส่ทุกวัน</button>` : ''}
               </div>
+              ${isCO2 ? `
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="font-size: 12px; color: var(--text-muted); white-space: nowrap;">Tank ID${isTankRequired ? ' *' : ''}</span>
+                  ${tankInputHtml}
+                </div>
+              ` : ''}
             </div>
           `;
         }).join('');
-        
+
         // Bind input and change events to recalculate
         qtyMultiContainer.querySelectorAll('.inp-qty-item').forEach(inp => {
           inp.addEventListener('input', window.recalculatePoDeduction);
           inp.addEventListener('change', window.recalculatePoDeduction);
         });
-        
-        // Bind copy-to-all button
+
+        // Bind copy-to-all button (quantity)
         document.getElementById('btn-copy-qty')?.addEventListener('click', function(e) {
           e.preventDefault();
           const firstVal = qtyMultiContainer.querySelector('.inp-qty-item')?.value;
@@ -508,9 +582,20 @@ function bindFormEvents() {
             window.recalculatePoDeduction();
           }
         });
+
+        // Bind copy-to-all button (Tank ID)
+        document.getElementById('btn-copy-tank')?.addEventListener('click', function(e) {
+          e.preventDefault();
+          const firstVal = qtyMultiContainer.querySelector('.inp-tank-item')?.value;
+          if (firstVal) {
+            qtyMultiContainer.querySelectorAll('.inp-tank-item').forEach(sel => {
+              sel.value = firstVal;
+            });
+          }
+        });
       }
     }
-    
+
     window.recalculatePoDeduction();
   });
 
@@ -532,12 +617,13 @@ function bindFormEvents() {
     const remainingEl = document.getElementById('po-remaining-after');
     const datesVal = document.getElementById('inp-delivery-date')?.value || '';
     const dates = datesVal ? datesVal.split(',').map(d => d.trim()).filter(Boolean) : [];
-    
+    const material = document.getElementById('sel-material')?.value || '';
+
     if (!poNum) {
       if (deductWrap) deductWrap.style.display = 'none';
       return;
     }
-    
+
     let enteredQty = 0;
     if (dates.length <= 1) {
       enteredQty = parseFloat(qtyInput?.value) || 0;
@@ -546,12 +632,15 @@ function bindFormEvents() {
         enteredQty += parseFloat(inp.value) || 0;
       });
     }
-    
+    // PO qty_pending is always tracked in KG. For Bioligo (IMO), the entered
+    // quantity is an IBC count, so convert before comparing against the PO.
+    const enteredKg = toPoDeductionKg(material, enteredQty);
+
     const selectedList = activePOs.filter(p => p.po_number === poNum);
     const sumQty = selectedList.reduce((acc, curr) => acc + parseFloat(curr.qty_pending || 0), 0);
-    
-    if (selectedList.length > 0 && enteredQty > 0) {
-      const remaining = sumQty - enteredQty;
+
+    if (selectedList.length > 0 && enteredKg > 0) {
+      const remaining = sumQty - enteredKg;
       if (deductWrap) deductWrap.style.display = 'inline';
       if (remainingEl) {
         remainingEl.textContent = Fmt.num(remaining);
@@ -614,11 +703,19 @@ function addToBasket(e) {
     return;
   }
 
-  const tankId = document.getElementById('inp-tank-id')?.value?.trim();
-  const isCO2 = material === "120001706 CO2 Gas" || material === "CO2 Gas";
-  if (isCO2 && plant === "PT" && !tankId) {
-    Toast.warning('กรุณาเลือก Tank ID');
-    return;
+  // Normalized so this matches regardless of whether the select's raw value
+  // has the SAP code prefix (e.g. "120001706 CO2 Gas") or not ("CO2 Gas").
+  const isCO2 = MatMap.toDB(material) === 'CO2';
+  const isTankRequired = isCO2 && plant === 'PT';
+
+  // Single-date mode: Tank ID comes from the one global field.
+  // Multi-date mode: Tank ID is validated per-date further down instead.
+  if (dates.length <= 1 && isTankRequired) {
+    const tankId = document.getElementById('inp-tank-id')?.value?.trim();
+    if (!tankId) {
+      Toast.warning('กรุณาเลือก Tank ID');
+      return;
+    }
   }
 
   // PO selection check
@@ -639,20 +736,33 @@ function addToBasket(e) {
       Toast.warning('กรุณากรอกจำนวนเรียกเข้า');
       return;
     }
-    itemsToAdd.push({ date: dates[0], qty: qty });
+    const tankId = isCO2 ? (document.getElementById('inp-tank-id')?.value?.trim() || null) : null;
+    itemsToAdd.push({ date: dates[0], qty, tankId });
   } else {
     let allValid = true;
+    let tankMissing = false;
     document.querySelectorAll('.inp-qty-item').forEach(inp => {
       const qty = parseFloat(inp.value);
       const d = inp.dataset.date;
       if (!qty || qty <= 0) {
         allValid = false;
-      } else {
-        itemsToAdd.push({ date: d, qty: qty });
+        return;
       }
+      // Tank ID is set per date row for CO2 (element .inp-tank-item[data-date="..."])
+      let tankId = null;
+      if (isCO2) {
+        const tankInp = document.querySelector(`.inp-tank-item[data-date="${d}"]`);
+        tankId = tankInp?.value?.trim() || null;
+        if (isTankRequired && !tankId) tankMissing = true;
+      }
+      itemsToAdd.push({ date: d, qty, tankId });
     });
     if (!allValid) {
       Toast.warning('กรุณากรอกจำนวนให้ครบทุกวัน');
+      return;
+    }
+    if (tankMissing) {
+      Toast.warning('กรุณาเลือก Tank ID ให้ครบทุกวัน');
       return;
     }
   }
@@ -666,7 +776,7 @@ function addToBasket(e) {
       quantity:      item.qty,
       unit,
       delivery_date: item.date,
-      tank_id:       (isCO2 ? document.getElementById('inp-tank-id')?.value?.trim() : null) || null,
+      tank_id:       item.tankId,
       po_number:     poNum,
       target_week:   null,
       remark:        null,
@@ -680,14 +790,17 @@ function addToBasket(e) {
     document.getElementById('inp-quantity').value = '';
     document.getElementById('inp-quantity').dispatchEvent(new Event('input'));
   }
-  
+
   // Clear multi inputs
   document.querySelectorAll('.inp-qty-item').forEach(inp => {
     inp.value = '';
   });
-  
+  document.querySelectorAll('.inp-tank-item').forEach(sel => {
+    sel.value = '';
+  });
+
   if (document.getElementById('inp-tank-id')) document.getElementById('inp-tank-id').value = '';
-  
+
   // Reset date picker and trigger change to reset quantity layout
   setDefaultDeliveryDate();
   document.getElementById('inp-delivery-date')?.dispatchEvent(new Event('change'));
@@ -696,7 +809,9 @@ function addToBasket(e) {
 }
 
 function renderBasketQtyInput(item, i) {
-  const mat = item.material_name;
+  // Normalized so this matches regardless of whether item.material_name has
+  // the SAP code prefix (e.g. "120001706 CO2 Gas") or not ("CO2 Gas").
+  const mat = MatMap.toDB(item.material_name);
   if (mat === "HFS42%" || mat === "Liquid Sugar") {
     return `
       <select class="form-control form-control-sm d-inline-block" style="width: 85px; padding: 2px 6px; font-size: 12px; height: 30px;" onchange="updateBasketQty(${i}, this.value)">
@@ -714,7 +829,16 @@ function renderBasketQtyInput(item, i) {
         <option value="6" ${item.quantity === 6 ? 'selected' : ''}>6</option>
       </select>
     `;
-  } else if (mat === "CO2 Gas") {
+  } else if (mat === "Bioligo IMO") {
+    return `
+      <select class="form-control form-control-sm d-inline-block" style="width: 60px; padding: 2px 6px; font-size: 12px; height: 30px;" onchange="updateBasketQty(${i}, this.value)">
+        <option value=""></option>
+        <option value="4" ${item.quantity === 4 ? 'selected' : ''}>4</option>
+        <option value="5" ${item.quantity === 5 ? 'selected' : ''}>5</option>
+        <option value="6" ${item.quantity === 6 ? 'selected' : ''}>6</option>
+      </select>
+    `;
+  } else if (mat === "CO2") {
     return `
       <select class="form-control form-control-sm d-inline-block" style="width: 75px; padding: 2px 6px; font-size: 12px; height: 30px;" onchange="updateBasketQty(${i}, this.value)">
         <option value="18000" ${item.quantity === 18000 ? 'selected' : ''}>18,000</option>
@@ -731,11 +855,14 @@ function renderBasketQtyInput(item, i) {
 window.updateBasketQty = function (i, val) {
   if (basket[i]) {
     basket[i].quantity = parseFloat(val) || 0;
+    // Re-render so the Bioligo (IMO) "(X,XXX KG)" hint (and any other
+    // quantity-derived display) stays in sync with the new value.
+    renderBasket();
   }
 };
 
 function renderBasketTankInput(item, i) {
-  if (item.material_name === "CO2 Gas") {
+  if (MatMap.toDB(item.material_name) === "CO2") {
     return `
       <select class="form-control form-control-sm" style="width: 130px; padding: 2px 6px; font-size: 12px; height: 30px;" onchange="updateBasketTankId(${i}, this.value)">
         <option value=""></option>
@@ -776,12 +903,12 @@ function renderBasket() {
     return;
   }
 
-  const hasCo2 = basket.some(item => item.material_name === "CO2 Gas");
+  const hasCo2 = basket.some(item => MatMap.toDB(item.material_name) === "CO2");
   const thTank = document.getElementById('th-basket-tank-id');
   if (thTank) thTank.style.display = hasCo2 ? '' : 'none';
 
   tbody.innerHTML = basket.map((item, i) => `
-    <tr class="${item.material_name !== 'CO2 Gas' ? 'hide-tank' : ''}">
+    <tr class="${MatMap.toDB(item.material_name) !== 'CO2' ? 'hide-tank' : ''}">
       <td class="td-center" style="color:var(--text-muted);font-size:12px">${i + 1}</td>
       <td><strong>${item.plant_name}</strong></td>
       <td style="white-space:nowrap">${Fmt.dateWithDay(item.delivery_date)}</td>
@@ -789,9 +916,10 @@ function renderBasket() {
       <td>${item.supplier_name}</td>
       <td style="display: ${hasCo2 ? '' : 'none'}">${renderBasketTankInput(item, i)}</td>
       <td class="td-right">
-        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap;">
           ${renderBasketQtyInput(item, i)}
-          <small class="text-muted" style="width: 28px; text-align: left;">${item.unit ?? ''}</small>
+          <small class="text-muted" style="text-align: left;">${item.unit ?? ''}</small>
+          ${MatMap.toDB(item.material_name) === 'Bioligo IMO' ? `<small class="text-muted" style="white-space: nowrap;">(${Fmt.num(toPoDeductionKg(item.material_name, item.quantity))} KG)</small>` : ''}
         </div>
       </td>
       <td class="td-center">
@@ -849,9 +977,15 @@ async function saveBasket() {
         title:         `${item.material_name} - ${item.supplier_name} - ${item.delivery_date}`,
       });
       
-      // Deduct quantity from PO if selected
+      // Deduct quantity from PO if selected.
+      // item.material_name is the bare select value (e.g. "CO2 Gas"); po_data
+      // rows are keyed by the SAP code-prefixed name (e.g. "120001706 CO2 Gas").
+      // item.quantity is in the display unit (IBC for Bioligo (IMO)); the PO
+      // itself always tracks KG, so convert before deducting.
       if (item.po_number) {
-        await API.updatePoPendingQty(item.po_number, item.material_name, item.quantity);
+        const poMaterialName = MatMap.toSAP(MatMap.toDB(item.material_name));
+        const deductKg = toPoDeductionKg(item.material_name, item.quantity);
+        await API.updatePoPendingQty(item.po_number, poMaterialName, deductKg);
       }
       
       successCount++;

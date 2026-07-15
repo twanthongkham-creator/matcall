@@ -2,6 +2,29 @@
    MATCALL - Settings & Master Recipient Management
    ============================================================ */
 
+/* ── Display-name mapping (kept consistent with request.html's
+   MatMap/SupplierMap) — master_supplier stores short internal names,
+   request.html shows the SAP-coded/display form. Used only for
+   display in the supplier table below, never for saved data. ── */
+const DisplayMap = {
+  material(dbName) {
+    if (dbName === 'CO2') return '120001706 CO2 Gas';
+    if (dbName === 'Liquid Sugar' || dbName === 'Liquid Sugar ') return '120001687 น้ำตาลเหลว';
+    if (dbName === 'HFS42%') return '120001688 High Fructose Syrup 42%';
+    if (dbName === 'Bioligo IMO') return '120001474 Bioligo (IMO)';
+    return dbName;
+  },
+  supplier(dbName) {
+    if (dbName === 'บจก.เจ้าคุณเกษตรพืชผล') return 'เจ้าคุณเกษตรพืชผล';
+    if (dbName === 'WGC' || dbName === 'ดับเบิ้ลยูจีซี') return 'ดับเบิ้ลยูจีซี';
+    if (dbName === 'ลินเด้ (ประเทศไทย)') return 'ลินเด้ (ประเทศไทย)';
+    if (dbName === 'พี.เอส.ซี.สตาร์ช โปรดักส์') return 'พี.เอส.ซี.สตาร์ช โปรดักส์';
+    if (dbName === 'แปซิฟิก ชูการ์ คอร์ปอเรชั่น') return 'แปซิฟิก ชูการ์ คอร์ปอเรชั่น';
+    if (dbName === 'ไทยรุ่งเรืองอุตสาหกรรม') return 'ไทยรุ่งเรืองอุตสาหกรรม';
+    return dbName;
+  }
+};
+
 document.addEventListener('DOMContentLoaded', async () => {
   // Helper to format email list to newlines
   function formatEmails(emailStr) {
@@ -99,8 +122,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           return `
             <tr data-supplier-id="${s.id}">
               <td class="text-center fw-bold text-navy">${s.plant}</td>
-              <td class="fw-semibold text-teal">${s.material_name}</td>
-              <td>${s.supplier_name}</td>
+              <td class="fw-semibold text-teal">${DisplayMap.material(s.material_name)}</td>
+              <td>${DisplayMap.supplier(s.supplier_name)}</td>
               <td style="font-size:12px; line-height:1.4; word-break: break-all;">${formatEmails(s.supplier_email)}</td>
               <td>${formattedEnd}</td>
               <td class="text-end fw-semibold text-navy">${latestQuota.quota_percent ? latestQuota.quota_percent + '%' : '-'}</td>
@@ -138,7 +161,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             Modal.confirm(
               'ยืนยันการลบข้อมูล',
-              `คุณต้องการลบข้อมูล Supplier "${sup.supplier_name}" (${sup.material_name} - ${sup.plant}) ออกจากระบบหรือไม่?`,
+              `คุณต้องการลบข้อมูล Supplier "${DisplayMap.supplier(sup.supplier_name)}" (${DisplayMap.material(sup.material_name)} - ${sup.plant}) ออกจากระบบหรือไม่?`,
               async () => {
                 try {
                   await API.deleteSupplier(supId);

@@ -323,7 +323,7 @@ const Auth = {
 
     // ── Sidebar menu visibility based on department ──────────
     const menuRules = {
-      production: ['index.html', 'request.html', 'history.html'],
+      production: ['index.html', 'request.html', 'history.html', 'po.html'],
       warehouse:  ['index.html', 'receive.html', 'history.html', 'po.html'],
       admin:      ['index.html', 'request.html', 'receive.html', 'history.html', 'po.html', 'settings.html'],
     };
@@ -335,10 +335,11 @@ const Auth = {
       const li = el.closest('li');
       if (!li) return;
       if (page) {
+        // Only touch style.display when it actually needs to change.
         if (!allowed.includes(page)) {
-          li.style.display = 'none';
+          if (li.style.display !== 'none') li.style.display = 'none';
         } else {
-          li.style.display = ''; // Ensure it remains visible
+          if (li.style.display === 'none') li.style.display = '';
         }
       }
     });

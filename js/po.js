@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Bind UI Events
   document.getElementById('btn-sap-import')?.addEventListener('click', importFromSap);
   document.getElementById('file-po-import')?.addEventListener('change', handleFileUpload);
-  
+
   // Filter Event Listeners
   document.getElementById('inp-po-search')?.addEventListener('input', renderPOTable);
   document.getElementById('sel-po-plant')?.addEventListener('change', renderPOTable);
@@ -92,7 +92,7 @@ function renderPOTable() {
     const statusText = p.is_completed ? 'เสร็จสิ้น (Closed)' : 'ยังไม่ครบ (Active)';
     const statusClass = p.is_completed ? 'po-closed' : 'po-active';
     const statusIcon = p.is_completed ? '<i class="bi bi-check-circle-fill"></i>' : '<i class="bi bi-arrow-repeat"></i>';
-    
+
     return `
       <tr>
         <td class="td-center" style="color:var(--text-muted);font-size:12px">${idx + 1}</td>
@@ -207,6 +207,7 @@ async function parseAndSaveExcel(arrayBuffer) {
     if (matCode === '120001706') materialName = '120001706 CO2 Gas';
     else if (matCode === '120001687') materialName = '120001687 น้ำตาลเหลว';
     else if (matCode === '120001688') materialName = '120001688 High Fructose Syrup 42%';
+    else if (matCode === '120001474') materialName = '120001474 Bioligo (IMO)';
     else continue; // Skip other materials
 
     // Map plant
@@ -249,7 +250,7 @@ async function parseAndSaveExcel(arrayBuffer) {
   }
 
   if (pos.length === 0) {
-    throw new Error("ไม่พบรายการข้อมูล PO ที่ตรงกับวัตถุดิบและโรงงานตามเงื่อนไข (3201-3205, 120001706, 120001687, 120001688)");
+    throw new Error("ไม่พบรายการข้อมูล PO ที่ตรงกับวัตถุดิบและโรงงานตามเงื่อนไข (3201-3205, 120001706, 120001687, 120001688, 120001474)");
   }
 
   // Upload to Supabase / Local storage fallback
@@ -260,7 +261,7 @@ async function parseAndSaveExcel(arrayBuffer) {
 function mapVendorToSupplier(vendorName) {
   if (!vendorName) return '';
   const v = vendorName.toString().trim().toLowerCase();
-  
+
   if (v.includes('linde') || v.includes('ลินเด้') || v.includes('special gas') || v.includes('Թ')) {
     return 'ลินเด้ (ประเทศไทย)';
   }

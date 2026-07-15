@@ -12,19 +12,22 @@
   <link rel="stylesheet" href="css/responsive.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <style>
-    .request-split {
+    /* Unified card: entry form on top, basket list directly below it, so the
+       whole "fill in → see it added → repeat → save" flow reads as one
+       continuous panel instead of two separate side-by-side cards. */
+    .basket-section-divider {
       display: flex;
-      gap: 20px;
-      align-items: flex-start;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: rgba(12, 138, 126, 0.05);
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--text);
     }
-    .request-form-panel {
-      flex: 0 0 430px;
-      min-width: 300px;
-    }
-    .request-basket-panel {
-      flex: 1;
-      min-width: 0;
-    }
+    .basket-section-divider i { color: var(--teal); }
     .basket-footer {
       display: flex;
       justify-content: flex-end;
@@ -41,9 +44,24 @@
       min-height: 16px;
     }
     .quota-info.warn { color: #d97706; }
+    .form-grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+    .form-flex-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 10px;
+    }
+    .form-flex-row > .form-group { flex: 1 1 220px; margin-bottom: 0; }
     @media (max-width: 960px) {
-      .request-split { flex-direction: column; }
-      .request-form-panel { flex: none; width: 100%; }
+      .form-grid-4 { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      .form-grid-4 { grid-template-columns: 1fr; }
+      .form-flex-row > .form-group { flex-basis: 100%; }
     }
   </style>
 </head>
@@ -120,82 +138,60 @@
         </div>
       </div>
 
-      <!-- Split Panel: Form + Basket -->
-      <div class="request-split">
+      <!-- Unified card: fill the form, item appears in the list right below,
+           repeat, then save everything at once. -->
+      <div class="card">
 
-        <!-- LEFT: Input Form -->
+        <!-- Entry form -->
         <div class="request-form-panel">
-          <div class="card">
-            <div class="card-header">
-              <i class="bi bi-pencil-square"></i> กรอกรายการ
-            </div>
-            <div class="card-body" style="padding: 16px;">
-              <form id="form-basket-item" novalidate autocomplete="off">
+          <div class="card-body" style="padding: 20px;">
+            <form id="form-basket-item" novalidate autocomplete="off">
 
-                <div class="form-grid-2">
-                  <div class="form-group">
-                    <label class="form-label required">โรงงาน (Plant)</label>
-                    <select class="form-control" id="sel-plant" required>
-                      <option value="">เลือกโรงงาน...</option>
-                    </select>
-                  </div>
+              <div class="form-grid-4">
+                <div class="form-group">
+                  <label class="form-label required">โรงงาน (Plant)</label>
+                  <select class="form-control" id="sel-plant" required>
+                    <option value="">เลือกโรงงาน...</option>
+                  </select>
+                </div>
 
-                  <div class="form-group">
-                    <label class="form-label required">วัตถุดิบ</label>
-                    <select class="form-control" id="sel-material" required>
-                      <option value="">เลือกโรงงานก่อน</option>
-                    </select>
+                <div class="form-group">
+                  <label class="form-label required">วัตถุดิบ</label>
+                  <select class="form-control" id="sel-material" required>
+                    <option value="">เลือกโรงงานก่อน</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label required">Supplier / ผู้ผลิต</label>
+                  <select class="form-control" id="sel-supplier" required>
+                    <option value="">เลือกวัตถุดิบก่อน</option>
+                  </select>
+                  <div class="quota-info" id="quota-info" style="margin-top: 2px;"></div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label required">วันส่งมอบ</label>
+                  <input type="date" class="form-control" id="inp-delivery-date" required>
+                </div>
+              </div>
+
+              <div class="form-divider" style="margin: 14px 0;"></div>
+
+              <!-- Single-date quantity + PO + Tank ID sit side by side; each
+                   only appears once it's relevant to the selected material. -->
+              <div class="form-flex-row">
+                <div class="form-group" id="qty-single-group" style="display: none;">
+                  <label class="form-label required">จำนวน</label>
+                  <div style="display:flex; gap:8px; align-items:center;">
+                    <div id="qty-input-container" style="flex:1;">
+                      <input type="number" class="form-control" id="inp-quantity" min="0.01" step="0.01" placeholder="0.00">
+                    </div>
+                    <input type="text" class="form-control" id="sel-unit" readonly disabled value="kg" style="max-width:60px;flex-shrink:0;">
                   </div>
                 </div>
 
-                <div class="form-grid-2" style="margin-top: 10px;">
-                  <div class="form-group">
-                    <label class="form-label required">Supplier / ผู้ผลิต</label>
-                    <select class="form-control" id="sel-supplier" required>
-                      <option value="">เลือกวัตถุดิบก่อน</option>
-                    </select>
-                    <div class="quota-info" id="quota-info" style="margin-top: 2px;"></div>
-                  </div>
-
-                  <div class="form-group">
-                    <label class="form-label required">วันส่งมอบ</label>
-                    <input type="date" class="form-control" id="inp-delivery-date" required>
-                  </div>
-                </div>
-
-                <div class="form-divider" style="margin: 10px 0;"></div>
-
-                <div class="form-group" style="margin-top: 10px;">
-                  <!-- Single Date Quantity -->
-                  <div id="qty-single-group" style="display: none;">
-                    <div class="form-grid-2">
-                      <div class="form-group">
-                        <label class="form-label required">จำนวน</label>
-                        <div id="qty-input-container">
-                          <input type="number" class="form-control" id="inp-quantity" min="0.01" step="0.01" placeholder="0.00">
-                        </div>
-                      </div>
-                      <div class="form-group">
-                        <label class="form-label">หน่วย</label>
-                        <input type="text" class="form-control" id="sel-unit" readonly disabled value="kg">
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <!-- Multiple Dates Quantities -->
-                  <div id="qty-multi-group" style="display: none;">
-                    <label class="form-label required">ระบุจำนวนเรียกเข้าในแต่ละวัน</label>
-                    <div id="qty-multi-container" style="background: rgba(0, 0, 0, 0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 10px; max-height: 240px; overflow-y: auto;">
-                      <!-- Dynamic date rows -->
-                    </div>
-                    <div class="form-group" style="max-width: 140px; display: none;">
-                      <label class="form-label">หน่วย</label>
-                      <input type="text" class="form-control" id="sel-unit-multi" readonly disabled value="kg">
-                    </div>
-                  </div>
-                </div>
-
-                <div class="form-group" id="po-group" style="margin-top: 10px; display: none;">
+                <div class="form-group" id="po-group" style="display: none;">
                   <label class="form-label required">หมายเลข PO (SAP) *</label>
                   <select class="form-control" id="sel-po">
                     <option value="">เลือกหมายเลข PO...</option>
@@ -208,76 +204,86 @@
                   </div>
                 </div>
 
-                <div class="form-group" id="tank-id-group" style="margin-top: 10px; display: none;">
+                <div class="form-group" id="tank-id-group" style="display: none;">
                   <label class="form-label">Tank ID</label>
                   <div id="tank-input-container">
                     <input type="text" class="form-control" id="inp-tank-id" placeholder="T-01">
                   </div>
                 </div>
-
-                <div style="margin-top: 14px;">
-                  <button type="submit" class="btn btn-teal" style="width:100%">
-                    <i class="bi bi-cart-plus"></i> เพิ่มใส่ตะกร้า
-                  </button>
-                </div>
-
-              </form>
-            </div>
-          </div>
-        </div>
-
-        <!-- RIGHT: Basket -->
-        <div class="request-basket-panel">
-          <div class="card" style="display:flex;flex-direction:column">
-            <div class="card-header">
-              <i class="bi bi-cart3"></i> ตะกร้า (Basket)
-              <span class="row-count ms-auto">
-                <strong id="basket-count">0</strong> รายการ
-              </span>
-            </div>
-            <div class="card-body" style="padding:0;flex:1">
-              <div class="table-wrap">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th class="th-center" style="width:36px">#</th>
-                      <th>โรงงาน</th>
-                      <th>วันที่เรียกเข้า</th>
-                      <th>วัตถุดิบ</th>
-                      <th>Supplier / ผู้ผลิต</th>
-                      <th id="th-basket-tank-id">Tank ID</th>
-                      <th class="th-right">จำนวน</th>
-                      <th class="th-center" style="width:48px">ลบ</th>
-                    </tr>
-                  </thead>
-                  <tbody id="basket-table-body">
-                    <tr>
-                      <td colspan="8">
-                        <div class="table-empty">
-                          <div class="empty-icon">
-                            <i class="bi bi-cart" style="font-size:2rem;color:var(--text-muted)"></i>
-                          </div>
-                          <div class="empty-text">ตะกร้าว่างอยู่</div>
-                          <div class="empty-sub">กรอกข้อมูลและกด "เพิ่มใส่ตะกร้า"</div>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
               </div>
-            </div>
-            <div class="basket-footer">
-              <button class="btn btn-ghost" id="btn-clear-basket" disabled>
-                <i class="bi bi-trash"></i> ล้างตะกร้า
-              </button>
-              <button class="btn btn-primary" id="btn-save-basket" disabled>
-                <i class="bi bi-check-lg"></i> บันทึกทั้งหมด
-              </button>
-            </div>
+
+              <!-- Multiple Dates Quantities (+ Tank ID per date for CO2) -->
+              <div id="qty-multi-group" style="display: none; margin-top: 10px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <label class="form-label required" style="margin-bottom: 0;">ระบุจำนวนเรียกเข้าในแต่ละวัน</label>
+                  <div id="qty-multi-header" style="display: flex; gap: 6px;"></div>
+                </div>
+                <div id="qty-multi-container" style="background: rgba(0, 0, 0, 0.02); padding: 4px 12px; border-radius: 8px; border: 1px solid var(--border); margin-top: 6px; margin-bottom: 10px;">
+                  <!-- Dynamic date rows -->
+                </div>
+                <input type="text" id="sel-unit-multi" style="display:none" readonly disabled value="kg">
+              </div>
+
+              <div style="margin-top: 10px;">
+                <button type="submit" class="btn btn-teal" style="width:100%; max-width:320px;">
+                  <i class="bi bi-cart-plus"></i> เพิ่มใส่ตะกร้า
+                </button>
+              </div>
+
+            </form>
           </div>
         </div>
 
-      </div><!-- /request-split -->
+        <!-- Basket: appears directly below the form -->
+        <div class="basket-section-divider">
+          <i class="bi bi-cart3"></i> ตะกร้า (Basket)
+          <span class="row-count ms-auto">
+            <strong id="basket-count">0</strong> รายการ
+          </span>
+        </div>
+        <div class="request-basket-panel">
+          <div class="card-body" style="padding:0">
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th class="th-center" style="width:36px">#</th>
+                    <th>โรงงาน</th>
+                    <th>วันที่เรียกเข้า</th>
+                    <th>วัตถุดิบ</th>
+                    <th>Supplier / ผู้ผลิต</th>
+                    <th id="th-basket-tank-id">Tank ID</th>
+                    <th class="th-right">จำนวน</th>
+                    <th class="th-center" style="width:48px">ลบ</th>
+                  </tr>
+                </thead>
+                <tbody id="basket-table-body">
+                  <tr>
+                    <td colspan="8">
+                      <div class="table-empty">
+                        <div class="empty-icon">
+                          <i class="bi bi-cart" style="font-size:2rem;color:var(--text-muted)"></i>
+                        </div>
+                        <div class="empty-text">ตะกร้าว่างอยู่</div>
+                        <div class="empty-sub">กรอกข้อมูลด้านบนแล้วกด "เพิ่มใส่ตะกร้า"</div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="basket-footer">
+            <button class="btn btn-ghost" id="btn-clear-basket" disabled>
+              <i class="bi bi-trash"></i> ล้างตะกร้า
+            </button>
+            <button class="btn btn-primary" id="btn-save-basket" disabled>
+              <i class="bi bi-check-lg"></i> บันทึกทั้งหมด
+            </button>
+          </div>
+        </div>
+
+      </div><!-- /unified card -->
 
       <!-- Existing Plans Table -->
       <div class="card" style="margin-top:20px">
