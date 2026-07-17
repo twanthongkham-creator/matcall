@@ -13,6 +13,18 @@ let suppliersMaster = [];
 let supplierQuotas = [];
 let monthlyChartMode = 'plan'; // 'plan' | 'actual'
 
+let dashPoChart   = null;
+let poDataRaw     = [];   // raw po_data rows for the current plant filter
+let activePoMaterial = null; // SAP-form material_name currently shown in the PO chart
+
+// Register the in-bar value/percent labels plugin globally, but keep it off
+// by default so it doesn't affect the other charts on this page — the PO
+// balance chart below turns it on explicitly for its own two datasets.
+if (typeof ChartDataLabels !== 'undefined') {
+  Chart.register(ChartDataLabels);
+  Chart.defaults.set('plugins.datalabels', { display: false });
+}
+
 window.toggleMonthlyChartMode = function(btn, mode) {
   monthlyChartMode = mode;
   document.querySelectorAll('.btn-monthly-mode').forEach(b => {
@@ -154,9 +166,203 @@ async function loadDashData() {
     populateFilterDropdowns();
 
     filterAndRenderDashboard();
+    await loadPoChartData();
   } catch (e) {
     Toast.error('โหลด Dashboard ไม่สำเร็จ: ' + e.message);
   }
+}
+
+/* ── PO Balance Chart data (received vs pending, per PO) ─────────
+   Independent of the month/supplier/material filters above — a PO's
+   balance isn't tied to a delivery date, so this only reacts to the plant
+   filter, and lets the user flip between materials since some materials
+   have several POs open at once. */
+async function loadPoChartData() {
+  const plantVal = document.getElementById('sel-dash-plant')?.value;
+  const currentUser = Auth.getUser();
+  const isPlantLimit = currentUser && currentUser.plant_code;
+  const plantCode = isPlantLimit ? currentUser.plant_code : (plantVal && plantVal !== 'all' ? plantVal : null);
+
+  try {
+    const allPOs = await API.getPOs(plantCode, null, null);
+    // Only POs SAP hasn't marked "Deliv. Compl." (X) — X means that PO line
+    // is closed, so it shouldn't clutter the balance chart. Same rule as
+    // the PO-assignment dropdowns on history.html.
+    poDataRaw = allPOs.filter(p => !p.is_completed);
+  } catch (e) {
+    poDataRaw = [];
+  }
+
+  renderPoMaterialFilters();
+  buildPoBalanceChart(activePoMaterial);
+}
+
+function renderPoMaterialFilters() {
+  const container = document.getElementById('dash-po-material-filters');
+  if (!container) return;
+
+  const materials = [...new Set(poDataRaw.map(p => p.material_name).filter(Boolean))].sort();
+
+  if (!materials.length) {
+    container.innerHTML = '';
+    activePoMaterial = null;
+    return;
+  }
+
+  if (!activePoMaterial || !materials.includes(activePoMaterial)) {
+    activePoMaterial = materials[0];
+  }
+
+  container.innerHTML = materials.map(m => {
+    const label = MatMap.toDB(m);
+    const isActive = m === activePoMaterial;
+    return `<button class="btn btn-sm ${isActive ? 'btn-primary' : 'btn-outline-teal'}" onclick="setPoMaterialFilter('${m.replace(/'/g, "\\'")}')">${label}</button>`;
+  }).join('');
+}
+
+window.setPoMaterialFilter = function (material) {
+  activePoMaterial = material;
+  renderPoMaterialFilters();
+  buildPoBalanceChart(material);
+};
+
+/* Stacked horizontal bar: one bar per PO number (po_items under the same
+   po_number are summed together), split into "รับแล้ว" (order_qty -
+   qty_pending) and "คงเหลือ (รอรับ)" (qty_pending) — makes it easy to see,
+   at a glance, which of a material's several open POs still has balance
+   left to call off against. */
+function buildPoBalanceChart(material) {
+  const ctx = document.getElementById('chart-po')?.getContext('2d');
+  const subtitleEl = document.getElementById('po-chart-subtitle');
+  if (!ctx) return;
+
+  if (dashPoChart) dashPoChart.destroy();
+
+  if (!material || !poDataRaw.length) {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.font = "14px 'Noto Sans Thai', sans-serif";
+    ctx.fillStyle = "#94a3b8";
+    ctx.textAlign = "center";
+    ctx.fillText("ไม่มีข้อมูล PO — กด \"ดึงจาก SAP อัตโนมัติ\" ในหน้าข้อมูล PO ก่อน", ctx.canvas.width / 2, ctx.canvas.height / 2);
+    if (subtitleEl) subtitleEl.textContent = '';
+    return;
+  }
+
+  const rows = poDataRaw.filter(p => p.material_name === material);
+
+  // Group multi-item POs (same po_number, several po_item lines) into one bar.
+  const grouped = {};
+  rows.forEach(p => {
+    if (!grouped[p.po_number]) grouped[p.po_number] = { orderQty: 0, pendingQty: 0 };
+    grouped[p.po_number].orderQty   += parseFloat(p.order_qty)   || 0;
+    grouped[p.po_number].pendingQty += parseFloat(p.qty_pending) || 0;
+  });
+
+  const poNumbers = Object.keys(grouped).sort();
+  const receivedData = poNumbers.map(n => Math.max(0, grouped[n].orderQty - grouped[n].pendingQty));
+  const pendingData  = poNumbers.map(n => Math.max(0, grouped[n].pendingQty));
+
+  if (subtitleEl) {
+    subtitleEl.textContent = `— ${MatMap.toDB(material)} (${poNumbers.length} PO)`;
+  }
+
+  // Taller canvas + thicker bars when there are many POs so bars don't get squashed.
+  const wrap = document.getElementById('po-chart-wrap');
+  if (wrap) wrap.style.height = Math.max(380, poNumbers.length * 52 + 70) + 'px';
+
+  // Percent-of-row helper shared by the in-bar labels and the tooltip.
+  const pctOf = (value, idx) => {
+    const total = receivedData[idx] + pendingData[idx];
+    return total > 0 ? Math.round((value / total) * 100) : 0;
+  };
+
+  // Pill-shaped stacked bar: only the two OUTER corners of the whole bar are
+  // rounded (start of "รับแล้ว", end of "คงเหลือ") — the boundary between the
+  // two segments stays flush instead of each segment getting its own
+  // rounded corners, which is what was reading as a rough/cut-off edge.
+  const PILL_RADIUS = 14;
+
+  dashPoChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: poNumbers,
+      datasets: [
+        {
+          label: 'รับแล้ว',
+          data: receivedData,
+          backgroundColor: 'rgba(12,138,126,0.92)',
+          hoverBackgroundColor: 'rgba(12,138,126,1)',
+          borderRadius: { topLeft: PILL_RADIUS, bottomLeft: PILL_RADIUS, topRight: 0, bottomRight: 0 },
+          borderSkipped: false,
+          maxBarThickness: 40,
+          minBarLength: 3,
+          datalabels: {
+            display: ctx => receivedData[ctx.dataIndex] > 0,
+            color: '#fff',
+            anchor: 'center',
+            align: 'center',
+            font: { family: "'Noto Sans Thai', sans-serif", size: 11, weight: '600' },
+            textAlign: 'center',
+            formatter: (value, ctx) => `${Fmt.num(value)} kg\n(${pctOf(value, ctx.dataIndex)}%)`,
+          },
+        },
+        {
+          label: 'คงเหลือ (รอรับ)',
+          data: pendingData,
+          backgroundColor: 'rgba(217,119,6,0.92)',
+          hoverBackgroundColor: 'rgba(217,119,6,1)',
+          borderRadius: { topLeft: 0, bottomLeft: 0, topRight: PILL_RADIUS, bottomRight: PILL_RADIUS },
+          borderSkipped: false,
+          maxBarThickness: 40,
+          minBarLength: 3,
+          datalabels: {
+            display: ctx => pendingData[ctx.dataIndex] > 0,
+            color: '#fff',
+            anchor: 'center',
+            align: 'center',
+            font: { family: "'Noto Sans Thai', sans-serif", size: 11, weight: '600' },
+            textAlign: 'center',
+            formatter: (value, ctx) => `${Fmt.num(value)} kg\n(${pctOf(value, ctx.dataIndex)}%)`,
+          },
+        },
+      ],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      barPercentage: 0.7,
+      categoryPercentage: 0.75,
+      plugins: {
+        legend: { position: 'top', labels: { font: { family: "'Noto Sans Thai', sans-serif", size: 11 }, usePointStyle: true, pointStyle: 'rectRounded' } },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ${Fmt.num(ctx.raw)} kg (${pctOf(ctx.raw, ctx.dataIndex)}%)`,
+            afterBody: items => {
+              const idx = items[0]?.dataIndex;
+              if (idx === undefined) return '';
+              const total = receivedData[idx] + pendingData[idx];
+              return `รวม: ${Fmt.num(total)} kg`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          stacked: true,
+          beginAtZero: true,
+          grid: { color: 'rgba(0,0,0,0.05)' },
+          ticks: { callback: v => Fmt.num(v), font: { size: 10 } },
+          title: { display: true, text: 'น้ำหนัก (kg)', font: { size: 11, weight: 'bold' } },
+        },
+        y: {
+          stacked: true,
+          grid: { display: false },
+          ticks: { font: { size: 12, weight: '600' } },
+        },
+      },
+    },
+  });
 }
 
 /* ── Filter & Render Dashboard (Month, Supplier & Material focus) ── */
@@ -407,32 +613,30 @@ function buildDailyColumnChart(data, year, month) {
 
   if (dashBarChart) dashBarChart.destroy();
 
+  // Column chart: plan vs actual as side-by-side bars per day, in the
+  // app's primary/teal theme colors (matches the quota chart below).
   dashBarChart = new Chart(ctx, {
-    type: 'line',
+    type: 'bar',
     data: {
       labels,
       datasets: [
         {
-          label: 'แผน (Quantity)',
+          label: 'แผน',
           data: planData,
-          borderColor: 'rgba(29,58,112,1)',
-          backgroundColor: 'rgba(29,58,112,0.06)',
-          fill: true,
-          tension: 0.35,
-          borderWidth: 3,
-          pointRadius: 2.5,
-          pointHoverRadius: 6,
+          backgroundColor: 'rgba(29,58,112,0.85)',
+          hoverBackgroundColor: 'rgba(29,58,112,1)',
+          borderRadius: 4,
+          borderSkipped: false,
+          maxBarThickness: 22,
         },
         {
-          label: 'รับจริง (SAP)',
+          label: 'รับจริง',
           data: actualData,
-          borderColor: 'rgba(12,138,126,1)',
-          backgroundColor: 'rgba(12,138,126,0.06)',
-          fill: true,
-          tension: 0.35,
-          borderWidth: 3,
-          pointRadius: 2.5,
-          pointHoverRadius: 6,
+          backgroundColor: 'rgba(12,138,126,0.85)',
+          hoverBackgroundColor: 'rgba(12,138,126,1)',
+          borderRadius: 4,
+          borderSkipped: false,
+          maxBarThickness: 22,
         },
       ],
     },
@@ -440,7 +644,7 @@ function buildDailyColumnChart(data, year, month) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'top', labels: { font: { family: "'Noto Sans Thai', sans-serif", size: 11 } } },
+        legend: { position: 'top', labels: { font: { family: "'Noto Sans Thai', sans-serif", size: 11 }, usePointStyle: true, pointStyle: 'rectRounded' } },
         tooltip: {
           callbacks: {
             label: ctx => `${ctx.dataset.label}: ${Fmt.num(ctx.raw)} kg`,
@@ -448,15 +652,16 @@ function buildDailyColumnChart(data, year, month) {
         },
       },
       scales: {
-        x: { 
-          grid: { display: false }, 
+        x: {
+          grid: { display: false },
           ticks: { font: { size: 10 } },
           title: { display: true, text: 'วันที่', font: { size: 11, weight: 'bold' } }
         },
         y: {
           grid: { color: 'rgba(0,0,0,0.05)' },
           ticks: { callback: v => Fmt.num(v), font: { size: 10 } },
-          title: { display: true, text: 'น้ำหนัก (kg)', font: { size: 11, weight: 'bold' } }
+          title: { display: true, text: 'น้ำหนัก (kg)', font: { size: 11, weight: 'bold' } },
+          beginAtZero: true,
         },
       },
     },

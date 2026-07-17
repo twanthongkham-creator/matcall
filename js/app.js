@@ -3,6 +3,56 @@
    Sidebar, navigation, toast, modal, formatters
    ============================================================ */
 
+/* ── Material / Supplier name mapping (SAP code-prefixed <-> bare DB form) ──
+   Shared between request.js (creates plans, bare DB form) and history.js
+   (assigns PO numbers against po_data, which is keyed by the SAP form). */
+const MatMap = {
+  toDB(sapName) {
+    if (sapName === '120001706 CO2 Gas' || sapName === 'CO2 Gas') return 'CO2';
+    if (sapName === '120001687 น้ำตาลเหลว' || sapName === 'น้ำตาลเหลว') return 'Liquid Sugar';
+    if (sapName === '120001688 High Fructose Syrup 42%' || sapName === 'High Fructose Syrup 42%') return 'HFS42%';
+    if (sapName === '120001474 Bioligo (IMO)' || sapName === 'Bioligo (IMO)') return 'Bioligo IMO';
+    return sapName;
+  },
+  toSAP(dbName) {
+    if (dbName === 'CO2') return '120001706 CO2 Gas';
+    if (dbName === 'Liquid Sugar' || dbName === 'Liquid Sugar ') return '120001687 น้ำตาลเหลว';
+    if (dbName === 'HFS42%') return '120001688 High Fructose Syrup 42%';
+    if (dbName === 'Bioligo IMO') return '120001474 Bioligo (IMO)';
+    return dbName;
+  }
+};
+
+const SupplierMap = {
+  toSAP(dbName) {
+    if (dbName === 'บจก.เจ้าคุณเกษตรพืชผล') return 'เจ้าคุณเกษตรพืชผล';
+    if (dbName === 'WGC' || dbName === 'ดับเบิ้ลยูจีซี') return 'ดับเบิ้ลยูจีซี';
+    if (dbName === 'ลินเด้ (ประเทศไทย)') return 'ลินเด้ (ประเทศไทย)';
+    if (dbName === 'พี.เอส.ซี.สตาร์ช โปรดักส์') return 'พี.เอส.ซี.สตาร์ช โปรดักส์';
+    if (dbName === 'แปซิฟิก ชูการ์ คอร์ปอเรชั่น') return 'แปซิฟิก ชูการ์ คอร์ปอเรชั่น';
+    if (dbName === 'ไทยรุ่งเรืองอุตสาหกรรม') return 'ไทยรุ่งเรืองอุตสาหกรรม';
+    return dbName;
+  },
+  toDB(sapName) {
+    if (sapName === 'เจ้าคุณเกษตรพืชผล' || sapName === 'บจก.เจ้าคุณเกษตรพืชผล') return 'บจก.เจ้าคุณเกษตรพืชผล';
+    if (sapName === 'ดับเบิ้ลยูจีซี' || sapName === 'WGC') return 'ดับเบิ้ลยูจีซี';
+    if (sapName === 'ลินเด้ (ประเทศไทย)') return 'ลินเด้ (ประเทศไทย)';
+    if (sapName === 'พี.เอส.ซี.สตาร์ช โปรดักส์') return 'พี.เอส.ซี.สตาร์ช โปรดักส์';
+    if (sapName === 'แปซิฟิก ชูการ์ คอร์ปอเรชั่น') return 'แปซิฟิก ชูการ์ คอร์ปอเรชั่น';
+    if (sapName === 'ไทยรุ่งเรืองอุตสาหกรรม') return 'ไทยรุ่งเรืองอุตสาหกรรม';
+    return sapName;
+  }
+};
+
+// Bioligo (IMO) is called off in IBC, but its PO (po_data.qty_pending) is
+// tracked in KG like every other PO material. 1 IBC = 1,350 KG.
+const BIOLIGO_IMO_KG_PER_IBC = 1350;
+// Convert an entered/basket quantity to the KG amount to deduct from the PO.
+// Only Bioligo (IMO) needs conversion; everything else is already in KG.
+function toPoDeductionKg(material, qty) {
+  return MatMap.toDB(material) === 'Bioligo IMO' ? (parseFloat(qty) || 0) * BIOLIGO_IMO_KG_PER_IBC : (parseFloat(qty) || 0);
+}
+
 /* ── Sidebar Toggle ─────────────────────────────────────────── */
 const Sidebar = {
   init() {
@@ -40,6 +90,41 @@ function setActiveNav() {
     if (el.dataset.page === path) el.classList.add('active');
   });
 }
+
+/* ── Magic Spring bottom-nav indicator ─────────────────────────
+   Moves the .nav-indicator-bg circle under whichever .nav-item is
+   currently active/visible in the mobile bottom bar. Uses offsetLeft
+   so it stays correct regardless of how many items are shown for the
+   logged-in user's department (see Auth.checkAuth). No-op on desktop
+   since the indicator is hidden there via CSS. */
+function positionNavIndicator() {
+  const indicator = document.querySelector('.nav-indicator-bg');
+  if (!indicator) return;
+
+  if (window.innerWidth > 768) {
+    indicator.classList.remove('is-visible');
+    return;
+  }
+
+  const activeLi = document.querySelector('.sidebar-nav li > .nav-item.active')?.closest('li');
+  if (!activeLi || activeLi.style.display === 'none') {
+    indicator.classList.remove('is-visible');
+    return;
+  }
+
+  const inset = 4; // matches the pill's visual gap from each li's edges
+  const width = activeLi.offsetWidth - (inset * 2);
+  const x = activeLi.offsetLeft + inset;
+  indicator.style.width = `${width}px`;
+  indicator.style.transform = `translateX(${x}px)`;
+  indicator.classList.add('is-visible');
+}
+
+let _navIndicatorResizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_navIndicatorResizeTimer);
+  _navIndicatorResizeTimer = setTimeout(positionNavIndicator, 120);
+});
 
 /* ── Toast Notifications ────────────────────────────────────── */
 const Toast = {
@@ -120,6 +205,187 @@ const Modal = {
   },
 };
 
+/* ── Reschedule / Cancel (already-notified call-off items) ──────
+   Shared by request.html (production dept — owns the plan) so they can
+   amend a call-off item that's already been e-mailed to the supplier:
+   reschedule its delivery date, or cancel it outright. Both actions keep
+   the ORIGINAL row (voided visually — red text, quantity shown as "-")
+   for an audit trail, and reschedule additionally creates a new row for
+   the new date (mail_status reset to Pending so it shows up for a fresh
+   notification). No DB schema changes needed: `status` is set to
+   'Rescheduled'/'Cancelled' (existing free-text column), and a bracketed
+   machine-readable tag is prefixed onto `remark` — see parseChangeTag(). */
+function parseChangeTag(remark) {
+  if (!remark) return null;
+  const m = remark.match(/^\[(RESCHED_TO|RESCHED_FROM|CANCELLED):?([^\]]*)\]\s*/);
+  if (!m) return null;
+  return { type: m[1], value: m[2], rest: remark.slice(m[0].length).trim() };
+}
+
+/**
+ * Open the reschedule/cancel modal for a call-off row.
+ * @param {object} row - the full calloff_plan row being amended
+ * @param {function} onSaved - called after the DB update succeeds, to let
+ *   the calling page refresh its own list (e.g. loadRequestList)
+ */
+function openRescheduleModal(row, onSaved) {
+  document.getElementById('__resched_modal')?.remove();
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const html = `
+  <div id="__resched_modal" class="modal-backdrop" style="display:flex">
+    <div class="modal-box" style="max-width:460px">
+      <div class="modal-header">
+        <span class="modal-title"><i class="bi bi-calendar2-week"></i> แก้ไขแผนการเรียกเข้า</span>
+        <button class="modal-close" onclick="document.getElementById('__resched_modal').remove()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">
+          <strong>${row.material_name ?? '-'}</strong> — ${row.supplier_name ?? '-'}<br>
+          วันที่ส่งมอบเดิม: <strong>${Fmt.dateWithDay(row.delivery_date)}</strong>
+          &nbsp;|&nbsp; จำนวน: <strong>${Fmt.num(row.quantity)} ${row.unit ?? ''}</strong>
+        </p>
+        <div class="form-group">
+          <label class="form-check">
+            <input type="radio" name="resched-action" value="reschedule" checked onchange="__toggleReschedFields()"> เลื่อนวันที่ส่งมอบ
+          </label>
+          <label class="form-check">
+            <input type="radio" name="resched-action" value="cancel" onchange="__toggleReschedFields()"> ยกเลิกรายการนี้
+          </label>
+        </div>
+        <div class="form-group" id="resched-date-group">
+          <label class="filter-label">วันที่ส่งมอบใหม่</label>
+          <input type="date" class="form-control" id="resched-new-date" min="${todayStr}">
+        </div>
+        <div class="form-group">
+          <label class="filter-label">หมายเหตุ (ถ้ามี)</label>
+          <textarea class="form-control" id="resched-reason" rows="2" placeholder="เช่น เหตุผลที่เลื่อน/ยกเลิก"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="document.getElementById('__resched_modal').remove()">ยกเลิก</button>
+        <button class="btn btn-primary" id="__resched_ok"><i class="bi bi-check-lg"></i> บันทึกการเปลี่ยนแปลง</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  document.getElementById('__resched_ok').onclick = () => submitReschedule(row, onSaved);
+
+  // Injected after page load, so the global flatpickr initializer (which
+  // only runs once on DOMContentLoaded) never sees this input — wire it
+  // up here so the date shows as dd/mm/yyyy like every other date field.
+  if (typeof flatpickr !== 'undefined') {
+    flatpickr('#resched-new-date', {
+      mode: 'single',
+      altInput: true,
+      altFormat: 'd/m/Y',
+      dateFormat: 'Y-m-d',
+      allowInput: true,
+      minDate: todayStr,
+    });
+  }
+}
+
+window.__toggleReschedFields = function () {
+  const action = document.querySelector('input[name="resched-action"]:checked')?.value;
+  const group = document.getElementById('resched-date-group');
+  if (group) group.style.display = action === 'reschedule' ? '' : 'none';
+};
+
+async function submitReschedule(row, onSaved) {
+  const action = document.querySelector('input[name="resched-action"]:checked')?.value;
+  const reason = document.getElementById('resched-reason')?.value?.trim() || '';
+  const newDate = document.getElementById('resched-new-date')?.value;
+
+  if (action === 'reschedule' && !newDate) {
+    Toast.warning('กรุณาระบุวันที่ส่งมอบใหม่');
+    return;
+  }
+  if (action === 'reschedule' && newDate === row.delivery_date) {
+    Toast.warning('วันที่ใหม่ต้องไม่ตรงกับวันที่เดิม');
+    return;
+  }
+
+  const btn = document.getElementById('__resched_ok');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> กำลังบันทึก...';
+
+  try {
+    let newRow = null;
+
+    if (action === 'cancel') {
+      const tag = `[CANCELLED:${new Date().toISOString().slice(0, 10)}]`;
+      await API.updateCalloffPlan(row.id, {
+        status: 'Cancelled',
+        remark: reason ? `${tag} ${reason}` : tag,
+      });
+    } else {
+      const tagOld = `[RESCHED_TO:${newDate}]`;
+      await API.updateCalloffPlan(row.id, {
+        status: 'Rescheduled',
+        remark: reason ? `${tagOld} ${reason}` : tagOld,
+      });
+
+      const tagNew = `[RESCHED_FROM:${row.delivery_date}]`;
+      newRow = await API.createCalloffPlan({
+        plant:         row.plant,
+        material_name: row.material_name,
+        supplier_name: row.supplier_name,
+        delivery_date: newDate,
+        quantity:      row.quantity,
+        unit:          row.unit,
+        tank_id:       row.tank_id,
+        po_number:     row.po_number,
+        remark:        reason ? `${tagNew} ${reason}` : tagNew,
+        title:         `${row.material_name} - ${row.supplier_name} - ${newDate}`,
+      });
+    }
+
+    document.getElementById('__resched_modal')?.remove();
+    Toast.success(action === 'cancel' ? 'ยกเลิกรายการสำเร็จ' : 'เลื่อนวันที่สำเร็จ');
+    if (typeof onSaved === 'function') await onSaved();
+
+    // Offer to notify the supplier about this change right away — but only
+    // if the original item had already been e-mailed (mail_status Sent);
+    // if it was never sent, there's nothing for the supplier to be told.
+    if (row.mail_status === 'Sent') {
+      const affectedIds = [row.id, ...(newRow ? [newRow.id] : [])];
+      Modal.confirm(
+        'แจ้ง Supplier',
+        `ต้องการส่งอีเมลแจ้ง Supplier เกี่ยวกับการ${action === 'cancel' ? 'ยกเลิก' : 'เลื่อน'}รายการนี้ตอนนี้เลยหรือไม่?`,
+        () => sendChangeNotification(row, affectedIds),
+        'info'
+      );
+    }
+  } catch (e) {
+    Toast.error('บันทึกไม่สำเร็จ: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check-lg"></i> บันทึกการเปลี่ยนแปลง';
+  }
+}
+
+/* Route the affected row(s) into the email flow, tagged as a change
+   notification so email-preview-supplier.html renders the voided row in
+   red/strikethrough and the new row (if any) with a "rescheduled from"
+   note, instead of the normal all-green call-off table. */
+async function sendChangeNotification(oldRow, ids) {
+  const items = await API.getCalloffPlans({ plant: oldRow.plant });
+  const selectedItems = items.filter(r => ids.includes(r.id))
+    .sort((a, b) => new Date(a.delivery_date) - new Date(b.delivery_date));
+
+  const currentUser = Auth.getUser();
+  sessionStorage.setItem('email_items',    JSON.stringify(selectedItems));
+  sessionStorage.setItem('email_plant',    oldRow.plant);
+  sessionStorage.setItem('email_supplier', oldRow.supplier_name);
+  sessionStorage.setItem('email_type',     'change');
+  sessionStorage.setItem('email_sender_name',  currentUser?.name  || '');
+  sessionStorage.setItem('email_sender_email', currentUser?.email || '');
+
+  // Cache-bust to avoid the browser serving a stale cached copy of this page.
+  window.location.href = 'email-preview-supplier.html?t=' + Date.now();
+}
+
 /* ── Date / Number Formatters ───────────────────────────────── */
 const Fmt = {
   /** "2026-06-11" → "11/06/2026" */
@@ -171,6 +437,7 @@ const Fmt = {
       'Received':      'badge-received',
       'SAP Completed': 'badge-sap',
       'Cancelled':     'badge-cancelled',
+      'Rescheduled':   'badge-rescheduled',
     };
     const cls = map[val] ?? 'badge-draft';
     return `<span class="badge ${cls}">${val}</span>`;
@@ -270,7 +537,7 @@ const Auth = {
     const dept = this.getDept();
     const access = {
       production: ['index.html', 'request.html', 'history.html'],
-      warehouse:  ['index.html', 'receive.html', 'history.html'],
+      warehouse:  ['index.html', 'receive.html', 'history.html', 'email-preview-supplier.html', 'email-preview-pan.html'],
     };
     return (access[dept] || []).includes(page);
   },
@@ -350,42 +617,12 @@ const Auth = {
       }
     });
 
-    // ── Add logout button to topbar dynamically ──────────────
+    // ── Add Switch User Dropdown for Testing ──────────────────
+    // (The standalone "ออกจากระบบ" topbar button was removed — logout is
+    // already reachable from the sidebar user badge at the bottom, which
+    // shows the signed-in user's name and a logout icon.)
     const topbar = document.getElementById('topbar');
-    if (topbar && !document.getElementById('topbar-logout')) {
-      const logoutBtn = document.createElement('button');
-      logoutBtn.className = 'btn btn-sm';
-      logoutBtn.id = 'topbar-logout';
-      logoutBtn.style.padding = '5px 10px';
-      logoutBtn.style.fontSize = '12px';
-      logoutBtn.style.fontWeight = '700';
-      logoutBtn.style.marginLeft = '8px';
-      logoutBtn.style.border = '1px solid #dc2626';
-      logoutBtn.style.color = '#dc2626';
-      logoutBtn.style.background = 'rgba(220, 38, 38, 0.05)';
-      logoutBtn.style.borderRadius = '6px';
-      logoutBtn.style.transition = 'all 0.2s';
-      logoutBtn.style.display = 'inline-flex';
-      logoutBtn.style.alignItems = 'center';
-      logoutBtn.style.gap = '4px';
-
-      logoutBtn.onmouseenter = () => {
-        logoutBtn.style.background = '#dc2626';
-        logoutBtn.style.color = '#ffffff';
-      };
-      logoutBtn.onmouseleave = () => {
-        logoutBtn.style.background = 'rgba(220, 38, 38, 0.05)';
-        logoutBtn.style.color = '#dc2626';
-      };
-
-      logoutBtn.innerHTML = '<i class="bi bi-box-arrow-right"></i> <span>ออกจากระบบ</span>';
-      logoutBtn.onclick = () => {
-        if (confirm('ต้องการลงชื่อออกจากระบบ (Log out) หรือไม่?')) {
-          Auth.logout();
-        }
-      };
-
-      // ── Add Switch User Dropdown for Testing ──────────────────
+    if (topbar && !document.getElementById('topbar-switch-user')) {
       const switchContainer = document.createElement('div');
       switchContainer.id = 'topbar-switch-user';
       switchContainer.style.display = 'inline-flex';
@@ -453,7 +690,6 @@ const Auth = {
 
       switchContainer.appendChild(switchSelect);
       topbar.appendChild(switchContainer);
-      topbar.appendChild(logoutBtn);
     }
 
     // ── Sidebar footer user badge ─────────────────────────────
@@ -513,6 +749,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   Sidebar.init();
   setActiveNav();
+  positionNavIndicator();
+  // Re-run once more after layout/fonts settle (icons/webfont can shift widths)
+  setTimeout(positionNavIndicator, 200);
 
   // Initialize Flatpickr globally to display date as dd/mm/yyyy (d/m/Y)
   if (typeof flatpickr !== 'undefined') {

@@ -93,11 +93,14 @@
 - Modal บันทึก: DO Number, วันรับจริง, น้ำหนักผู้ผลิต, น้ำหนักโรงงาน (auto-calc ส่วนต่าง), น้ำหนัก SAP, เลข SAP Doc, Receive Status
 - ปุ่ม "สรุปรายเดือน" → email-preview-pan.html
 
-### 3.5 Dashboard (dashboard.html)
+### 3.5 Dashboard (index.html)
 - KPI Cards: แผนรวม, รับจริง, Fulfillment Rate, รายการ, รับแล้ว, รอรับ
-- Bar Chart: ยอดรายเดือน (ปีงบประมาณ Oct–Sep), แผน vs รับจริง
+- Column Chart: ยอดเปรียบเทียบ แผน vs รับจริง รายวัน/รายเดือน (Chart.js `type: bar`, สี Primary/Teal ตาม Theme)
 - Doughnut Chart: สัดส่วน Supplier, toggle แผน/รับจริง
-- Filter: โรงงาน, Supplier, วัตถุดิบ
+- Bar Chart: เปรียบเทียบสัดส่วนโควต้าจริง vs สัญญา
+- **PO Balance Chart** (ยอดคงเหลือตาม PO): Stacked horizontal bar แสดงยอด "รับแล้ว" vs "คงเหลือ (รอรับ)" แยกตาม PO number ของแต่ละวัตถุดิบ (เลือกวัตถุดิบผ่านปุ่ม pill เนื่องจากวัตถุดิบบางตัวมีหลาย PO เปิดไว้ล่วงหน้า)
+  - **Business Rule:** แสดงเฉพาะ PO/PO Item ที่คอลัมน์ `Deliv. Compl.` ในไฟล์ SAP ยังเป็นค่าว่างเท่านั้น (`po_data.is_completed = false`) — ไม่แสดงรายการที่มีค่า `X` เพราะหมายถึง PO บรรทัดนั้นปิดแล้ว กฎเดียวกับที่ใช้กรอง dropdown เลือก PO ใน history.html
+- Filter: โรงงาน, Supplier, วัตถุดิบ, เดือน (กราฟ PO Balance ไม่ผูกกับ filter เดือน/Supplier/วัตถุดิบด้านบน ผูกเฉพาะโรงงาน)
 
 ### 3.6 Email Preview – Supplier (email-preview-supplier.html)
 - อ่านข้อมูลจาก sessionStorage

@@ -223,31 +223,31 @@ const API = {
       let localUsers = JSON.parse(localStorage.getItem('fallback_users') || '[]');
       if (localUsers.length < 13 || !localUsers.some(u => u.username === '550101')) {
         localUsers = [
-          { id: 1, username: 'admin', name: 'Super Admin', plant_code: '', role: 'Admin', department: 'admin', password: '1234' },
+          { id: 1, username: 'admin', name: 'Super Admin', plant_code: '', role: 'Admin', department: 'admin', password: '1234', email: 'admin@sermsukplc.com' },
           
-          { id: 2, username: '550101', name: 'วัชระ รุ่งเรือง', plant_code: 'PT', role: 'User', department: 'production', password: '550101' },
-          { id: 3, username: '550102', name: 'อนันต์ ศรีสุข', plant_code: 'PT', role: 'Admin', department: 'production', password: '550102' },
-          { id: 4, username: '550103', name: 'สุภาพร มั่นคง', plant_code: 'PT', role: 'User', department: 'warehouse', password: '550103' },
+          { id: 2, username: '550101', name: 'วัชระ รุ่งเรือง', plant_code: 'PT', role: 'User', department: 'production', password: '550101', email: 'watchara.r@sermsukplc.com' },
+          { id: 3, username: '550102', name: 'อนันต์ ศรีสุข', plant_code: 'PT', role: 'Admin', department: 'production', password: '550102', email: 'anant.s@sermsukplc.com' },
+          { id: 4, username: '550103', name: 'สุภาพร มั่นคง', plant_code: 'PT', role: 'User', department: 'warehouse', password: '550103', email: 'supaporn.m@sermsukplc.com' },
           
-          { id: 5, username: '550201', name: 'เกียรติศักดิ์ พูนผล', plant_code: 'KR', role: 'User', department: 'production', password: '550201' },
-          { id: 6, username: '550202', name: 'ณรงค์ศักดิ์ สุขใจ', plant_code: 'KR', role: 'Admin', department: 'production', password: '550202' },
-          { id: 7, username: '550203', name: 'ปริญญา สมบูรณ์', plant_code: 'KR', role: 'User', department: 'warehouse', password: '550203' },
+          { id: 5, username: '550201', name: 'เกียรติศักดิ์ พูนผล', plant_code: 'KR', role: 'User', department: 'production', password: '550201', email: 'kiattisak.p@sermsukplc.com' },
+          { id: 6, username: '550202', name: 'ณรงค์ศักดิ์ สุขใจ', plant_code: 'KR', role: 'Admin', department: 'production', password: '550202', email: 'narongsak.s@sermsukplc.com' },
+          { id: 7, username: '550203', name: 'ปริญญา สมบูรณ์', plant_code: 'KR', role: 'User', department: 'warehouse', password: '550203', email: 'parinya.s@sermsukplc.com' },
           
-          { id: 8, username: '550301', name: 'ประวิทย์ ขยันยิ่ง', plant_code: 'NS', role: 'User', department: 'production', password: '550301' },
-          { id: 9, username: '550302', name: 'สุรเดช สว่างเนตร', plant_code: 'NS', role: 'Admin', department: 'production', password: '550302' },
-          { id: 10, username: '550303', name: 'วารี ใจงาม', plant_code: 'NS', role: 'User', department: 'warehouse', password: '550303' },
+          { id: 8, username: '550301', name: 'ประวิทย์ ขยันยิ่ง', plant_code: 'NS', role: 'User', department: 'production', password: '550301', email: 'prawit.k@sermsukplc.com' },
+          { id: 9, username: '550302', name: 'สุรเดช สว่างเนตร', plant_code: 'NS', role: 'Admin', department: 'production', password: '550302', email: 'suradet.s@sermsukplc.com' },
+          { id: 10, username: '550303', name: 'วารี ใจงาม', plant_code: 'NS', role: 'User', department: 'warehouse', password: '550303', email: 'waree.j@sermsukplc.com' },
           
-          { id: 11, username: '550401', name: 'สมศักดิ์ รักชาติ', plant_code: 'SR', role: 'User', department: 'production', password: '550401' },
-          { id: 12, username: '550402', name: 'ธีรยุทธ วันทองคำ', plant_code: 'SR', role: 'Admin', department: 'production', password: '550402' },
-          { id: 13, username: '550403', name: 'สมหมาย ดีเลิศ', plant_code: 'SR', role: 'User', department: 'warehouse', password: '550403' },
+          { id: 11, username: '550401', name: 'สมศักดิ์ รักชาติ', plant_code: 'SR', role: 'User', department: 'production', password: '550401', email: 'somsak.r@sermsukplc.com' },
+          { id: 12, username: '550402', name: 'ธีรยุทธ วันทองคำ', plant_code: 'SR', role: 'Admin', department: 'production', password: '550402', email: 'teerayut.w@sermsukplc.com' },
+          { id: 13, username: '550403', name: 'สมหมาย ดีเลิศ', plant_code: 'SR', role: 'User', department: 'warehouse', password: '550403', email: 'sommai.d@sermsukplc.com' },
           
-          { id: 14, username: '550501', name: 'ไพโรจน์ รอดภัย', plant_code: 'CH', role: 'User', department: 'production', password: '550501' },
-          { id: 15, username: '550502', name: 'วิชัย ดีประเสริฐ', plant_code: 'CH', role: 'Admin', department: 'production', password: '550502' },
-          { id: 16, username: '550503', name: 'มณี สุขสบาย', plant_code: 'CH', role: 'User', department: 'warehouse', password: '550503' },
+          { id: 14, username: '550501', name: 'ไพโรจน์ รอดภัย', plant_code: 'CH', role: 'User', department: 'production', password: '550501', email: 'pairoj.r@sermsukplc.com' },
+          { id: 15, username: '550502', name: 'วิชัย ดีประเสริฐ', plant_code: 'CH', role: 'Admin', department: 'production', password: '550502', email: 'wichai.d@sermsukplc.com' },
+          { id: 16, username: '550503', name: 'มณี สุขสบาย', plant_code: 'CH', role: 'User', department: 'warehouse', password: '550503', email: 'manee.s@sermsukplc.com' },
           
-          { id: 17, username: '550601', name: 'มานพ แก้วคง', plant_code: 'NP', role: 'User', department: 'production', password: '550601' },
-          { id: 18, username: '550602', name: 'ธนากร ใจเย็น', plant_code: 'NP', role: 'Admin', department: 'production', password: '550602' },
-          { id: 19, username: '550603', name: 'กนกวรรณ ศรีทอง', plant_code: 'NP', role: 'User', department: 'warehouse', password: '550603' }
+          { id: 17, username: '550601', name: 'มานพ แก้วคง', plant_code: 'NP', role: 'User', department: 'production', password: '550601', email: 'manop.k@sermsukplc.com' },
+          { id: 18, username: '550602', name: 'ธนากร ใจเย็น', plant_code: 'NP', role: 'Admin', department: 'production', password: '550602', email: 'thanakorn.j@sermsukplc.com' },
+          { id: 19, username: '550603', name: 'กนกวรรณ ศรีทอง', plant_code: 'NP', role: 'User', department: 'warehouse', password: '550603', email: 'kanokwan.s@sermsukplc.com' }
         ];
         localStorage.setItem('fallback_users', JSON.stringify(localUsers));
       }

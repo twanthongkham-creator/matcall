@@ -48,6 +48,17 @@ async function loadReceiveMasters() {
   try {
     const plants = await API.getPlants();
     populateSelect(document.getElementById('sel-rcv-filter-plant'), plants, 'plant_code', 'plant_name', 'ทั้งหมด', true);
+
+    // Auto-restrict to the logged-in user's own plant (same pattern as
+    // request.html / history.html) — users only see their own plant's data.
+    const user = Auth.getUser();
+    if (user && user.plant_code) {
+      const selFilterPlant = document.getElementById('sel-rcv-filter-plant');
+      if (selFilterPlant) {
+        selFilterPlant.value = user.plant_code;
+        selFilterPlant.disabled = true;
+      }
+    }
   } catch (e) { console.error(e); }
 }
 
@@ -213,8 +224,8 @@ window.openReceiveForm = async function (id) {
     document.getElementById('inp-rcv-weight-diff').value     = row.weight_diff     ?? '';
     document.getElementById('inp-rcv-sap-w').value           = row.sap_receive_weight ?? '';
     document.getElementById('inp-rcv-sap-doc').value         = row.sap_doc_number  ?? '';
-    document.getElementById('sel-rcv-rcv-status').value      = row.receive_status  ?? 'Pending';
 
+    applyRcvFieldLabels();
     calcRcvWeightDiff();
     Modal.show('modal-receive-form');
   } catch (e) {
@@ -224,12 +235,17 @@ window.openReceiveForm = async function (id) {
 
 /* ── Events ─────────────────────────────────────────────────── */
 function bindReceiveEvents() {
+  // Filters apply as soon as any of them change — no need to press "กรอง".
+  // The button/reset stay wired too as an explicit manual re-run.
   document.getElementById('btn-rcv-filter')?.addEventListener('click', loadReceiveList);
   document.getElementById('btn-rcv-reset')?.addEventListener('click', () => {
     document.getElementById('form-rcv-filter')?.reset();
     loadReceiveList();
   });
   document.getElementById('inp-rcv-search')?.addEventListener('input', debounce(loadReceiveList, 400));
+  document.getElementById('sel-rcv-filter-plant')?.addEventListener('change', loadReceiveList);
+  document.getElementById('sel-rcv-month')?.addEventListener('change', loadReceiveList);
+  document.getElementById('sel-rcv-status')?.addEventListener('change', loadReceiveList);
 
   // Weight diff auto-calc
   document.getElementById('inp-rcv-supplier-w')?.addEventListener('input', calcRcvWeightDiff);
@@ -245,6 +261,28 @@ function bindReceiveEvents() {
   document.getElementById('btn-monthly-email')?.addEventListener('click', prepareMonthlyEmail);
 }
 
+// Relabel the two weighing fields depending on material — CO2 is measured
+// as a tank level before/after filling, everything else is a straight
+// supplier-vs-factory weighing.
+function applyRcvFieldLabels() {
+  const material = (rcvMaterialName || '').trim().toLowerCase();
+  const isCO2 = material.includes('co2');
+
+  const lblSupplier = document.getElementById('lbl-rcv-supplier-w');
+  const lblFactory   = document.getElementById('lbl-rcv-factory-w');
+  const lblSap        = document.getElementById('lbl-rcv-sap-w');
+
+  if (isCO2) {
+    if (lblSupplier) lblSupplier.textContent = 'ก่อนเติม (kg)';
+    if (lblFactory)   lblFactory.textContent   = 'หลังเติม (kg)';
+    if (lblSap)        lblSap.textContent        = 'ปริมาณรับจริง (kg)';
+  } else {
+    if (lblSupplier) lblSupplier.textContent = 'น้ำหนักจากผู้ผลิต (kg)';
+    if (lblFactory)   lblFactory.textContent   = 'น้ำหนักการชั่ง (เสริมสุข) (kg)';
+    if (lblSap)        lblSap.textContent        = 'น้ำหนักที่ต้องรับจริง (kg)';
+  }
+}
+
 function calcRcvWeightDiff() {
   const sw = parseFloat(document.getElementById('inp-rcv-supplier-w')?.value) || 0;
   const fw = parseFloat(document.getElementById('inp-rcv-factory-w')?.value)  || 0;
@@ -255,24 +293,43 @@ function calcRcvWeightDiff() {
     el.style.color = diff < 0 ? '#dc2626' : diff > 0 ? '#16a34a' : '';
   }
 
-  // Auto calculate weight for HFS42% and Liquid Sugar
-  const materialText = document.getElementById('rcv-info-material')?.textContent || '';
-  const material = materialText.trim().toLowerCase();
-  const isSpecialMaterial = material.includes('hfs') || material.includes('sugar') || material.includes('liquid sugar');
-  
+  const material = (rcvMaterialName || '').trim().toLowerCase();
+  const isCO2 = material.includes('co2');
+  // HFS42% / Liquid Sugar: take the smaller of the two weighings, then
+  // always subtract 20 kg for what's left behind in the delivery hose.
+  const isSugarLike = material.includes('hfs') || material.includes('sugar') || material.includes('liquid sugar');
+
   const sapWeightInput = document.getElementById('inp-rcv-sap-w');
-  if (sapWeightInput) {
-    if (isSpecialMaterial && sw > 0 && fw > 0) {
-      const minWeight = Math.min(sw, fw);
-      const calculatedVal = minWeight - 20;
-      sapWeightInput.value = calculatedVal;
-      sapWeightInput.style.color = '#dc2626'; // Red text color
-      sapWeightInput.style.fontWeight = 'bold'; // Bold text
-    } else if (!isSpecialMaterial) {
-      // For other materials, clear custom styling
-      sapWeightInput.style.color = '';
-      sapWeightInput.style.fontWeight = '';
-    }
+  if (!sapWeightInput) return;
+
+  if (isCO2 && sw > 0 && fw > 0) {
+    // CO2: "ก่อนเติม" / "หลังเติม" tank levels — actual received is simply
+    // the difference, no -20 deduction (that only applies to the sugar hose).
+    sapWeightInput.value = diff;
+    sapWeightInput.readOnly = true;
+    sapWeightInput.style.background = '#f8fafc';
+    sapWeightInput.style.color = '#dc2626';
+    sapWeightInput.style.fontWeight = 'bold';
+  } else if (isSugarLike && sw > 0 && fw > 0) {
+    const minWeight = Math.min(sw, fw);
+    sapWeightInput.value = minWeight - 20;
+    sapWeightInput.readOnly = true;
+    sapWeightInput.style.background = '#f8fafc';
+    sapWeightInput.style.color = '#dc2626';
+    sapWeightInput.style.fontWeight = 'bold';
+  } else if (isCO2 || isSugarLike) {
+    // Weighing not complete yet — leave blank rather than showing a stale
+    // auto-calculated value, but keep it locked until both weights are in.
+    sapWeightInput.readOnly = true;
+    sapWeightInput.style.background = '#f8fafc';
+    sapWeightInput.style.color = '';
+    sapWeightInput.style.fontWeight = '';
+  } else {
+    // Other materials: no established formula — leave it editable.
+    sapWeightInput.readOnly = false;
+    sapWeightInput.style.background = '';
+    sapWeightInput.style.color = '';
+    sapWeightInput.style.fontWeight = '';
   }
 }
 
@@ -300,6 +357,13 @@ async function submitReceiveForm(e) {
   btn.disabled = true;
   btn.textContent = 'กำลังบันทึก...';
 
+  const sapDocNumber = document.getElementById('inp-rcv-sap-doc').value || null;
+
+  // No more manual status dropdown — filling in the form means it's
+  // received. Once the SAP document number is also recorded, that receipt
+  // is considered fully closed out in SAP.
+  const receiveStatus = sapDocNumber ? 'SAP Completed' : 'Received';
+
   const payload = {
     do_number:            document.getElementById('inp-rcv-do').value || null,
     actual_delivery_date: document.getElementById('inp-rcv-actual-date').value || null,
@@ -307,8 +371,8 @@ async function submitReceiveForm(e) {
     factory_weight:       parseFloat(document.getElementById('inp-rcv-factory-w').value)  || null,
     weight_diff:          parseFloat(document.getElementById('inp-rcv-weight-diff').value) || null,
     sap_receive_weight:   parseFloat(document.getElementById('inp-rcv-sap-w').value)       || null,
-    sap_doc_number:       document.getElementById('inp-rcv-sap-doc').value || null,
-    receive_status:       document.getElementById('sel-rcv-rcv-status').value,
+    sap_doc_number:       sapDocNumber,
+    receive_status:       receiveStatus,
   };
 
   try {
@@ -355,5 +419,6 @@ async function prepareMonthlyEmail() {
                     'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
   sessionStorage.setItem('email_month_name', thMonths[parseInt(month)]);
 
-  window.location.href = 'email-preview-pan.html';
+  // Cache-bust to avoid the browser serving a stale cached copy of this page.
+  window.location.href = 'email-preview-pan.html?t=' + Date.now();
 }

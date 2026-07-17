@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>MATCALL – รับวัตถุดิบ</title>
   <link rel="icon" href="matcall_logo.png" type="image/png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="theme-color" content="#0c8a7e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MATCALL">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="css/main.css">
@@ -27,6 +33,7 @@
       </div>
     </div>
     <div class="sidebar-section-label">เมนูหลัก</div>
+    <div class="nav-indicator-bg"></div>
     <ul class="sidebar-nav">
       <li><a class="nav-item" data-page="index.html" href="index.html"><span class="nav-icon"><i class="bi bi-house-fill"></i></span><span class="nav-label">หน้าหลัก</span></a></li>
       <li><a class="nav-item" data-page="request.html" href="request.html"><span class="nav-icon"><i class="bi bi-file-earmark-text"></i></span><span class="nav-label">เรียกเข้าวัตถุดิบ (แผนกผลิต)</span></a></li>
@@ -189,28 +196,28 @@
       </div>
 
       <form id="form-receive" novalidate>
-        <div class="form-grid-2" style="margin-bottom:14px">
-          <div class="form-group">
+        <div class="form-grid-2" style="margin-bottom:18px">
+          <div class="form-group" style="margin-bottom:0">
             <label class="form-label">เลขที่ใบส่งของ (DO)</label>
             <input type="text" class="form-control" id="inp-rcv-do" placeholder="DO-XXXXXXXX">
           </div>
-          <div class="form-group">
+          <div class="form-group" style="margin-bottom:0">
             <label class="form-label">วันที่รับจริง</label>
             <input type="date" class="form-control" id="inp-rcv-actual-date">
           </div>
         </div>
 
         <div class="form-section-title">ข้อมูลการชั่งน้ำหนัก</div>
-        <div class="form-grid-3" style="margin-bottom:14px">
-          <div class="form-group">
-            <label class="form-label">น้ำหนักจากผู้ผลิต (kg)</label>
+        <div class="form-grid-3" style="margin-bottom:18px">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label" id="lbl-rcv-supplier-w">น้ำหนักจากผู้ผลิต (kg)</label>
             <input type="number" class="form-control" id="inp-rcv-supplier-w" step="0.01" placeholder="0">
           </div>
-          <div class="form-group">
-            <label class="form-label">น้ำหนักการชั่ง (เสริมสุข) (kg)</label>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label" id="lbl-rcv-factory-w">น้ำหนักการชั่ง (เสริมสุข) (kg)</label>
             <input type="number" class="form-control" id="inp-rcv-factory-w" step="0.01" placeholder="0">
           </div>
-          <div class="form-group">
+          <div class="form-group" style="margin-bottom:0">
             <label class="form-label">ส่วนต่างน้ำหนัก (kg)</label>
             <input type="number" class="form-control" id="inp-rcv-weight-diff" readonly placeholder="0"
                    style="background:#f8fafc; font-weight: bold;">
@@ -218,26 +225,14 @@
         </div>
 
         <div class="form-section-title">ข้อมูล SAP</div>
-        <div class="form-grid-2" style="margin-bottom:14px">
-          <div class="form-group">
-            <label class="form-label">น้ำหนักที่ต้องรับจริง (kg)</label>
+        <div class="form-grid-2">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label" id="lbl-rcv-sap-w">น้ำหนักที่ต้องรับจริง (kg)</label>
             <input type="number" class="form-control" id="inp-rcv-sap-w" step="0.01" placeholder="0">
           </div>
-          <div class="form-group">
+          <div class="form-group" style="margin-bottom:0">
             <label class="form-label">เลขที่เอกสาร SAP</label>
             <input type="text" class="form-control" id="inp-rcv-sap-doc" placeholder="SAP-XXXXXXXXXX">
-          </div>
-        </div>
-        <div class="form-grid-2" style="margin-bottom:14px">
-          <div class="form-group">
-            <label class="form-label required">สถานะการรับ</label>
-            <select class="form-control" id="sel-rcv-rcv-status" required>
-              <option value="Pending">Pending</option>
-              <option value="Received">Received</option>
-              <option value="SAP Completed">SAP Completed</option>
-            </select>
-          </div>
-          <div class="form-group">
           </div>
         </div>
       </form>
@@ -256,7 +251,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="js/app.js"></script>
-<script src="js/receive.js"></script>
+<script src="js/app.js?v=20260717e"></script>
+<script src="js/receive.js?v=20260717e"></script>
 </body>
 </html>

@@ -33,3 +33,8 @@ alter table calloff_plan add column if not exists po_number text;
 
 -- Add supplier_name column if table already exists
 alter table po_data add column if not exists supplier_name text;
+
+-- Add unit price / currency columns (from SAP XLSX 'Net Price' / 'Crcy' columns)
+-- so history.html can show price alongside each selectable PO number.
+alter table po_data add column if not exists net_price numeric(14,4);
+alter table po_data add column if not exists currency text;

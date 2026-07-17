@@ -6,18 +6,11 @@
 let reqPlants = [];
 let basket    = [];   // in-memory cart items
 let reqRows   = [];   // existing saved plans
-let activePOs = [];   // loaded POs for selected plant/material
 let currentPage = 1;
 const pageSize  = 20;
 
-// Bioligo (IMO) is called off in IBC, but its PO (po_data.qty_pending) is
-// tracked in KG like every other PO material. 1 IBC = 1,350 KG.
-const BIOLIGO_IMO_KG_PER_IBC = 1350;
-// Convert an entered/basket quantity to the KG amount to deduct from the PO.
-// Only Bioligo (IMO) needs conversion; everything else is already in KG.
-function toPoDeductionKg(material, qty) {
-  return MatMap.toDB(material) === 'Bioligo IMO' ? (parseFloat(qty) || 0) * BIOLIGO_IMO_KG_PER_IBC : (parseFloat(qty) || 0);
-}
+// MatMap, SupplierMap, BIOLIGO_IMO_KG_PER_IBC and toPoDeductionKg now live in
+// js/app.js (shared with history.js, which assigns PO numbers post-creation).
 
 /* ── Init ──────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', async () => {
@@ -152,7 +145,7 @@ function getQtyInputHtml(material, dateStr = '', includeUnitLabel = true) {
   const style = dateStr ? 'style="max-width: 120px;"' : '';
 
   let unitLabel = 'kg';
-  if (material === "Bioligo IH200" || material.includes("Bioligo")) {
+  if (material.includes("Bioligo")) {
     unitLabel = 'IBC';
   }
   const unitSpan = includeUnitLabel
@@ -183,16 +176,6 @@ function getQtyInputHtml(material, dateStr = '', includeUnitLabel = true) {
       </select>
       ${unitSpan}
     `;
-  } else if (material === "Bioligo IH200" || material.includes("Bioligo")) {
-    return `
-      <select class="form-control ${cssClass}" ${nameId} ${dataAttr} ${style} required>
-        <option value=""></option>
-        <option value="4">4</option>
-        <option value="5">5</option>
-        <option value="6">6</option>
-      </select>
-      ${unitSpan}
-    `;
   } else if (material === "CO2" || material.includes("120001706")) {
     return `
       <select class="form-control ${cssClass}" ${nameId} ${dataAttr} ${style} required>
@@ -206,6 +189,17 @@ function getQtyInputHtml(material, dateStr = '', includeUnitLabel = true) {
       ${unitSpan}
     `;
   }
+}
+
+// Default quantity to pre-fill a basket row with when adding multiple dates
+// at once (no inline per-date form anymore — quantity is fixed up directly
+// in the basket). Fixed-option materials default to their first/smallest
+// option so the basket <select> shows a value that actually matches; free
+// entry / Bioligo materials are left at 0 for the user to fill in.
+function getDefaultBasketQty(materialDb) {
+  if (materialDb === 'CO2') return 18000;
+  if (materialDb === 'HFS42%' || materialDb === 'Liquid Sugar') return 15000;
+  return 0;
 }
 
 // Reusable Tank ID <select> markup.
@@ -238,10 +232,6 @@ function updateDynamicInputs(material) {
     qtyContainer.innerHTML = getQtyInputHtml(material, '', false);
   }
 
-  // bind recalculate listeners
-  document.getElementById('inp-quantity')?.addEventListener('input', window.recalculatePoDeduction);
-  document.getElementById('inp-quantity')?.addEventListener('change', window.recalculatePoDeduction);
-
   // 2. Tank ID Input Setup (single-date mode only; multi-date mode renders its
   // own per-date Tank ID dropdowns inside #qty-multi-container instead)
   if (material === "CO2" || material.includes("120001706")) {
@@ -269,43 +259,7 @@ function updateDynamicInputs(material) {
   }
 }
 
-const SupplierMap = {
-  toSAP(dbName) {
-    if (dbName === 'บจก.เจ้าคุณเกษตรพืชผล') return 'เจ้าคุณเกษตรพืชผล';
-    if (dbName === 'WGC' || dbName === 'ดับเบิ้ลยูจีซี') return 'ดับเบิ้ลยูจีซี';
-    if (dbName === 'ลินเด้ (ประเทศไทย)') return 'ลินเด้ (ประเทศไทย)';
-    if (dbName === 'พี.เอส.ซี.สตาร์ช โปรดักส์') return 'พี.เอส.ซี.สตาร์ช โปรดักส์';
-    if (dbName === 'แปซิฟิก ชูการ์ คอร์ปอเรชั่น') return 'แปซิฟิก ชูการ์ คอร์ปอเรชั่น';
-    if (dbName === 'ไทยรุ่งเรืองอุตสาหกรรม') return 'ไทยรุ่งเรืองอุตสาหกรรม';
-    return dbName;
-  },
-  toDB(sapName) {
-    if (sapName === 'เจ้าคุณเกษตรพืชผล' || sapName === 'บจก.เจ้าคุณเกษตรพืชผล') return 'บจก.เจ้าคุณเกษตรพืชผล';
-    if (sapName === 'ดับเบิ้ลยูจีซี' || sapName === 'WGC') return 'ดับเบิ้ลยูจีซี';
-    if (sapName === 'ลินเด้ (ประเทศไทย)') return 'ลินเด้ (ประเทศไทย)';
-    if (sapName === 'พี.เอส.ซี.สตาร์ช โปรดักส์') return 'พี.เอส.ซี.สตาร์ช โปรดักส์';
-    if (sapName === 'แปซิฟิก ชูการ์ คอร์ปอเรชั่น') return 'แปซิฟิก ชูการ์ คอร์ปอเรชั่น';
-    if (sapName === 'ไทยรุ่งเรืองอุตสาหกรรม') return 'ไทยรุ่งเรืองอุตสาหกรรม';
-    return sapName;
-  }
-};
-
-const MatMap = {
-  toDB(sapName) {
-    if (sapName === '120001706 CO2 Gas' || sapName === 'CO2 Gas') return 'CO2';
-    if (sapName === '120001687 น้ำตาลเหลว' || sapName === 'น้ำตาลเหลว') return 'Liquid Sugar';
-    if (sapName === '120001688 High Fructose Syrup 42%' || sapName === 'High Fructose Syrup 42%') return 'HFS42%';
-    if (sapName === '120001474 Bioligo (IMO)' || sapName === 'Bioligo (IMO)') return 'Bioligo IMO';
-    return sapName;
-  },
-  toSAP(dbName) {
-    if (dbName === 'CO2') return '120001706 CO2 Gas';
-    if (dbName === 'Liquid Sugar' || dbName === 'Liquid Sugar ') return '120001687 น้ำตาลเหลว';
-    if (dbName === 'HFS42%') return '120001688 High Fructose Syrup 42%';
-    if (dbName === 'Bioligo IMO') return '120001474 Bioligo (IMO)';
-    return dbName;
-  }
-};
+// MatMap and SupplierMap now live in js/app.js (shared with history.js).
 
 function bindFormEvents() {
   // Plant change → load materials
@@ -347,18 +301,7 @@ function bindFormEvents() {
     const selSup   = document.getElementById('sel-supplier');
     selSup.innerHTML = '<option value="">กำลังโหลด...</option>';
     clearQuota();
-    
-    // Clear and hide PO dropdown (Supplier chosen before PO)
-    const poGroup = document.getElementById('po-group');
-    if (poGroup) poGroup.style.display = 'none';
-    const selPo = document.getElementById('sel-po');
-    if (selPo) {
-      selPo.required = false;
-      selPo.innerHTML = '<option value="">เลือกหมายเลข PO...</option>';
-    }
-    const poBadge = document.getElementById('po-info-badge');
-    if (poBadge) poBadge.style.display = 'none';
-    
+
     // Auto populate unit based on SAP material name
     let sapUnit = 'kg';
     if (material.includes('Bioligo')) {
@@ -420,94 +363,6 @@ function bindFormEvents() {
         el.innerHTML = `<i class="bi bi-info-circle"></i> Remaining quota: <strong>${Fmt.num(q)}</strong>`;
       }
     }
-
-    // PO Group Handling (Supplier chosen before PO)
-    const poGroup = document.getElementById('po-group');
-    const selPo = document.getElementById('sel-po');
-    const poBadge = document.getElementById('po-info-badge');
-    const poDeduct = document.getElementById('po-deduction-wrap');
-
-    if (poGroup && selPo) {
-      // Normalized so this covers both the SAP-coded and bare forms of each
-      // PO-tracked material, regardless of which form the select's raw value uses.
-      const isAllowedMaterial = ['CO2', 'Liquid Sugar', 'HFS42%', 'Bioligo IMO'].includes(MatMap.toDB(material));
-      if (isAllowedMaterial && supplierName) {
-        poGroup.style.display = 'block';
-        selPo.required = true;
-        selPo.innerHTML = '<option value="">กำลังโหลด PO...</option>';
-        if (poBadge) poBadge.style.display = 'none';
-        if (poDeduct) poDeduct.style.display = 'none';
-
-        try {
-          // Fetch POs filtered by supplierName.
-          // po_data.material_name is always stored with the SAP code prefix
-          // (e.g. "120001706 CO2 Gas"), but the material select's value is the
-          // bare name (e.g. "CO2 Gas"). Convert via MatMap so the query matches.
-          const poMaterialName = MatMap.toSAP(MatMap.toDB(material));
-          activePOs = await API.getPOs(plant, poMaterialName, supplierName);
-          const activeList = activePOs.filter(p => !p.is_completed && p.qty_pending > 0);
-          
-          // Group by po_number and sum qty_pending
-          const poMap = {};
-          activeList.forEach(p => {
-            if (!poMap[p.po_number]) {
-              poMap[p.po_number] = 0;
-            }
-            poMap[p.po_number] += parseFloat(p.qty_pending);
-          });
-
-          selPo.innerHTML = '<option value="">เลือกหมายเลข PO...</option>';
-          const poEntries = Object.entries(poMap);
-          poEntries.forEach(([poNum, sumQty]) => {
-            const opt = document.createElement('option');
-            opt.value = poNum;
-            opt.textContent = `${poNum} (คงเหลือยอดรวม: ${Fmt.num(sumQty)} kg)`;
-            selPo.appendChild(opt);
-          });
-          
-          if (poEntries.length > 0) {
-            selPo.value = poEntries[0][0]; // Auto-select first PO
-            selPo.dispatchEvent(new Event('change'));
-          } else {
-            selPo.innerHTML = '<option value="">ไม่มีหมายเลข PO ที่ใช้งานได้</option>';
-          }
-        } catch (err) {
-          console.error("Error loading POs:", err);
-          selPo.innerHTML = '<option value="">โหลด PO ล้มเหลว</option>';
-        }
-      } else {
-        poGroup.style.display = 'none';
-        selPo.required = false;
-        selPo.innerHTML = '<option value="">เลือกหมายเลข PO...</option>';
-        if (poBadge) poBadge.style.display = 'none';
-        if (poDeduct) poDeduct.style.display = 'none';
-        activePOs = [];
-      }
-    }
-  });
-
-  // PO selection change
-  document.getElementById('sel-po')?.addEventListener('change', function () {
-    const poNum = this.value;
-    const poBadge = document.getElementById('po-info-badge');
-    const pendingEl = document.getElementById('po-pending-qty');
-    const poDeduct = document.getElementById('po-deduction-wrap');
-    
-    if (!poNum) {
-      if (poBadge) poBadge.style.display = 'none';
-      if (poDeduct) poDeduct.style.display = 'none';
-      return;
-    }
-    
-    // Sum up pending qty for the selected PO
-    const selectedList = activePOs.filter(p => p.po_number === poNum);
-    const sumQty = selectedList.reduce((acc, curr) => acc + parseFloat(curr.qty_pending || 0), 0);
-    
-    if (selectedList.length > 0) {
-      if (poBadge) poBadge.style.display = 'block';
-      if (pendingEl) pendingEl.textContent = Fmt.num(sumQty);
-      window.recalculatePoDeduction();
-    }
   });
 
   // Unit synchronizers
@@ -520,189 +375,55 @@ function bindFormEvents() {
     if (selSingle) selSingle.value = this.value;
   });
 
-  // Date selection change → toggle single vs multi quantity inputs
+  // Date selection change → toggle single quantity input; for multiple
+  // dates, no inline per-date form is shown — each date gets added straight
+  // to the Basket with a default quantity, and is edited there instead.
   document.getElementById('inp-delivery-date')?.addEventListener('change', function () {
     const datesVal = this.value.trim();
     const dates = datesVal ? datesVal.split(',').map(d => d.trim()).filter(Boolean) : [];
 
     const qtySingle = document.getElementById('qty-single-group');
-    const qtyMulti = document.getElementById('qty-multi-group');
-    const qtyMultiContainer = document.getElementById('qty-multi-container');
     const inpSingle = document.getElementById('inp-quantity');
-    const plant = document.getElementById('sel-plant')?.value;
     // Normalize to the short DB form ('CO2', 'HFS42%', 'Liquid Sugar', ...) so
     // matching stays correct regardless of whether the select's raw value has
     // the SAP code prefix or not.
     const material = MatMap.toDB(document.getElementById('sel-material').value);
     const isCO2 = material === 'CO2';
     const tankGroup = document.getElementById('tank-id-group');
+    const multiHint = document.getElementById('multi-date-hint');
 
     if (dates.length <= 1) {
       if (qtySingle) qtySingle.style.display = 'block';
-      if (qtyMulti) qtyMulti.style.display = 'none';
+      if (multiHint) multiHint.style.display = 'none';
       if (inpSingle) {
         inpSingle.required = true;
       }
-      // Restore the single global Tank ID field (multi-date mode hides it
-      // in favor of per-date Tank ID selects below).
       if (tankGroup) tankGroup.style.display = isCO2 ? 'block' : 'none';
     } else {
       if (qtySingle) qtySingle.style.display = 'none';
-      if (qtyMulti) qtyMulti.style.display = 'block';
+      if (multiHint) multiHint.style.display = 'block';
       if (inpSingle) {
         inpSingle.required = false;
         inpSingle.value = ''; // clear hidden single input value
       }
-      // CO2 needs a Tank ID per delivery date, not one shared value, so hide
-      // the single global Tank ID field while multi-date rows are showing.
+      // Tank ID (for CO2) is edited per-row in the basket instead of here.
       if (tankGroup) tankGroup.style.display = 'none';
-
-      // Render multiple quantity (+ Tank ID for CO2) inputs — one compact
-      // row per date, left to right. Copy buttons live once in the header
-      // (not repeated per row) so every row stays the same height.
-      if (qtyMultiContainer) {
-        const isTankRequired = isCO2 && plant === 'PT';
-        const multiHeader = document.getElementById('qty-multi-header');
-        if (multiHeader) {
-          multiHeader.innerHTML = `
-            <button type="button" class="btn btn-teal btn-sm" id="btn-copy-qty" style="padding: 3px 8px; font-size: 11px;"><i class="bi bi-copy"></i> จำนวนทุกวัน</button>
-            ${isCO2 ? `<button type="button" class="btn btn-outline-primary btn-sm" id="btn-copy-tank" style="padding: 3px 8px; font-size: 11px;"><i class="bi bi-copy"></i> Tank ID ทุกวัน</button>` : ''}
-          `;
-        }
-
-        qtyMultiContainer.innerHTML = dates.map((d, index) => {
-          const formattedDate = Fmt.dateWithDay(d);
-          const qtyInputHtml = getQtyInputHtml(material, d, false); // pass false to exclude unitLabel next to the input, as we style it nicely now
-          const tankInputHtml = isCO2 ? getTankInputHtml(d, isTankRequired) : '';
-          
-          // Determine unit text
-          let unitLabel = 'kg';
-          if (material === 'Bioligo IH200' || material.includes('Bioligo')) {
-            unitLabel = 'IBC';
-          }
-
-          return `
-            <div class="multi-date-card" style="background:#ffffff; border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-              <div style="font-weight: 700; font-size: 13.5px; color: var(--primary); display: flex; align-items: center; gap: 6px; margin-bottom: 10px; border-bottom: 1px dashed var(--border); padding-bottom: 6px;">
-                <i class="bi bi-calendar3-event-fill" style="color: var(--teal);"></i> ${formattedDate}
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 8px;">
-                <!-- Quantity Field -->
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-                  <span style="font-size: 12.5px; color: var(--text-muted); font-weight: 500;">จำนวนเรียกเข้า</span>
-                  <div style="display: flex; align-items: center; gap: 6px;">
-                    ${qtyInputHtml}
-                    <span style="font-size: 12.5px; font-weight: 600; color: var(--text); min-width: 25px;">${unitLabel}</span>
-                  </div>
-                </div>
-                <!-- Tank ID Field if CO2 -->
-                ${isCO2 ? `
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px;">
-                  <span style="font-size: 12.5px; color: var(--text-muted); font-weight: 500;">Tank ID${isTankRequired ? ' <span style="color:#ef4444">*</span>' : ''}</span>
-                  <div style="width: 155px;">
-                    ${tankInputHtml}
-                  </div>
-                </div>
-                ` : ''}
-              </div>
-            </div>
-          `;
-        }).join('');
-
-        // Bind input and change events to recalculate
-        qtyMultiContainer.querySelectorAll('.inp-qty-item').forEach(inp => {
-          inp.addEventListener('input', window.recalculatePoDeduction);
-          inp.addEventListener('change', window.recalculatePoDeduction);
-        });
-
-        // Bind copy-to-all button (quantity)
-        document.getElementById('btn-copy-qty')?.addEventListener('click', function(e) {
-          e.preventDefault();
-          const firstVal = qtyMultiContainer.querySelector('.inp-qty-item')?.value;
-          if (firstVal) {
-            qtyMultiContainer.querySelectorAll('.inp-qty-item').forEach(inp => {
-              inp.value = firstVal;
-            });
-            window.recalculatePoDeduction();
-          }
-        });
-
-        // Bind copy-to-all button (Tank ID)
-        document.getElementById('btn-copy-tank')?.addEventListener('click', function(e) {
-          e.preventDefault();
-          const firstVal = qtyMultiContainer.querySelector('.inp-tank-item')?.value;
-          if (firstVal) {
-            qtyMultiContainer.querySelectorAll('.inp-tank-item').forEach(sel => {
-              sel.value = firstVal;
-            });
-          }
-        });
-      }
-    }
-
-    window.recalculatePoDeduction();
-  });
-
-  // Quantity input change for single date -> recalculate PO deduction
-  document.getElementById('qty-input-container')?.addEventListener('input', function (e) {
-    if (e.target && e.target.id === 'inp-quantity') {
-      window.recalculatePoDeduction();
     }
   });
 
   // Form submit → add to basket
   document.getElementById('form-basket-item')?.addEventListener('submit', addToBasket);
 
-  // Recalculate helper
-  window.recalculatePoDeduction = function() {
-    const poNum = document.getElementById('sel-po')?.value;
-    const qtyInput = document.getElementById('inp-quantity');
-    const deductWrap = document.getElementById('po-deduction-wrap');
-    const remainingEl = document.getElementById('po-remaining-after');
-    const datesVal = document.getElementById('inp-delivery-date')?.value || '';
-    const dates = datesVal ? datesVal.split(',').map(d => d.trim()).filter(Boolean) : [];
-    const material = document.getElementById('sel-material')?.value || '';
-
-    if (!poNum) {
-      if (deductWrap) deductWrap.style.display = 'none';
-      return;
-    }
-
-    let enteredQty = 0;
-    if (dates.length <= 1) {
-      enteredQty = parseFloat(qtyInput?.value) || 0;
-    } else {
-      document.querySelectorAll('.inp-qty-item').forEach(inp => {
-        enteredQty += parseFloat(inp.value) || 0;
-      });
-    }
-    // PO qty_pending is always tracked in KG. For Bioligo (IMO), the entered
-    // quantity is an IBC count, so convert before comparing against the PO.
-    const enteredKg = toPoDeductionKg(material, enteredQty);
-
-    const selectedList = activePOs.filter(p => p.po_number === poNum);
-    const sumQty = selectedList.reduce((acc, curr) => acc + parseFloat(curr.qty_pending || 0), 0);
-
-    if (selectedList.length > 0 && enteredKg > 0) {
-      const remaining = sumQty - enteredKg;
-      if (deductWrap) deductWrap.style.display = 'inline';
-      if (remainingEl) {
-        remainingEl.textContent = Fmt.num(remaining);
-        if (remaining < 0) {
-          remainingEl.style.color = '#e53e3e';
-        } else {
-          remainingEl.style.color = '#d97706';
-        }
-      }
-    } else {
-      if (deductWrap) deductWrap.style.display = 'none';
-    }
-  };
-
-  // Filter events
+  // Filter events — apply as soon as any filter changes, no need to press
+  // "กรอง". The button/reset stay wired too as an explicit manual re-run.
   document.getElementById('btn-filter-apply')?.addEventListener('click', loadRequestList);
   document.getElementById('btn-filter-reset')?.addEventListener('click', resetFilters);
   document.getElementById('inp-search')?.addEventListener('input', debounce(loadRequestList, 400));
+  document.getElementById('sel-filter-plant')?.addEventListener('change', loadRequestList);
+  document.getElementById('sel-filter-material')?.addEventListener('change', loadRequestList);
+  document.getElementById('sel-filter-status')?.addEventListener('change', loadRequestList);
+  document.getElementById('inp-date-from')?.addEventListener('change', loadRequestList);
+  document.getElementById('inp-date-to')?.addEventListener('change', loadRequestList);
 
   // Bulk operations for saved list
   document.getElementById('chk-req-select-all')?.addEventListener('change', function () {
@@ -762,14 +483,6 @@ function addToBasket(e) {
     }
   }
 
-  // PO selection check
-  const poGroup = document.getElementById('po-group');
-  const poNum = poGroup && poGroup.style.display !== 'none' ? document.getElementById('sel-po')?.value : null;
-  if (poGroup && poGroup.style.display !== 'none' && !poNum) {
-    Toast.warning('กรุณาเลือกหมายเลข PO');
-    return;
-  }
-
   const plantObj = reqPlants.find(p => p.plant_code === plant);
   const unit = document.getElementById('sel-unit')?.value || 'kg';
   const itemsToAdd = [];
@@ -783,32 +496,14 @@ function addToBasket(e) {
     const tankId = isCO2 ? (document.getElementById('inp-tank-id')?.value?.trim() || null) : null;
     itemsToAdd.push({ date: dates[0], qty, tankId });
   } else {
-    let allValid = true;
-    let tankMissing = false;
-    document.querySelectorAll('.inp-qty-item').forEach(inp => {
-      const qty = parseFloat(inp.value);
-      const d = inp.dataset.date;
-      if (!qty || qty <= 0) {
-        allValid = false;
-        return;
-      }
-      // Tank ID is set per date row for CO2 (element .inp-tank-item[data-date="..."])
-      let tankId = null;
-      if (isCO2) {
-        const tankInp = document.querySelector(`.inp-tank-item[data-date="${d}"]`);
-        tankId = tankInp?.value?.trim() || null;
-        if (isTankRequired && !tankId) tankMissing = true;
-      }
-      itemsToAdd.push({ date: d, qty, tankId });
+    // Multiple dates: no inline per-date inputs anymore — add one basket
+    // row per date with a sensible default quantity, then let the user
+    // adjust quantity / Tank ID directly in the basket table.
+    const materialDb = MatMap.toDB(material);
+    const defaultQty = getDefaultBasketQty(materialDb);
+    dates.forEach(d => {
+      itemsToAdd.push({ date: d, qty: defaultQty, tankId: null });
     });
-    if (!allValid) {
-      Toast.warning('กรุณากรอกจำนวนให้ครบทุกวัน');
-      return;
-    }
-    if (tankMissing) {
-      Toast.warning('กรุณาเลือก Tank ID ให้ครบทุกวัน');
-      return;
-    }
   }
 
   itemsToAdd.forEach(item => {
@@ -821,7 +516,9 @@ function addToBasket(e) {
       unit,
       delivery_date: item.date,
       tank_id:       item.tankId,
-      po_number:     poNum,
+      // PO number is no longer chosen at creation time — production dept
+      // doesn't need to know it. Warehouse assigns it later on history.html.
+      po_number:     null,
       target_week:   null,
       remark:        null,
     });
@@ -865,15 +562,6 @@ function renderBasketQtyInput(item, i) {
         <option value="15000" ${item.quantity === 15000 ? 'selected' : ''}>15,000</option>
         <option value="30000" ${item.quantity === 30000 ? 'selected' : ''}>30,000</option>
         <option value="60000" ${item.quantity === 60000 ? 'selected' : ''}>60,000</option>
-      </select>
-    `;
-  } else if (mat === "Bioligo IH200") {
-    return `
-      <select class="form-control form-control-sm d-inline-block" style="width: 60px; padding: 2px 6px; font-size: 12px; height: 30px;" onchange="updateBasketQty(${i}, this.value)">
-        <option value=""></option>
-        <option value="4" ${item.quantity === 4 ? 'selected' : ''}>4</option>
-        <option value="5" ${item.quantity === 5 ? 'selected' : ''}>5</option>
-        <option value="6" ${item.quantity === 6 ? 'selected' : ''}>6</option>
       </select>
     `;
   } else if (mat === "Bioligo IMO") {
@@ -1001,6 +689,24 @@ function bindBasketEvents() {
 async function saveBasket() {
   if (!basket.length) return;
 
+  // Multi-date adds land in the basket with default/blank quantity (and no
+  // Tank ID for CO2) since that's now the only place they're edited — catch
+  // anything still unfilled before it gets saved.
+  const missingQty = basket.some(item => !item.quantity || item.quantity <= 0);
+  if (missingQty) {
+    Toast.warning('กรุณาระบุจำนวนให้ครบทุกรายการในตะกร้าก่อนบันทึก');
+    return;
+  }
+  const missingTank = basket.some(item => {
+    if (MatMap.toDB(item.material_name) !== 'CO2') return false;
+    if (item.plant !== 'PT') return false;
+    return !item.tank_id;
+  });
+  if (missingTank) {
+    Toast.warning('กรุณาเลือก Tank ID ให้ครบทุกรายการ CO2 (โรงงาน PT) ในตะกร้าก่อนบันทึก');
+    return;
+  }
+
   const btn = document.getElementById('btn-save-basket');
   btn.disabled = true;
   btn.innerHTML = '<i class="bi bi-hourglass-split"></i> กำลังบันทึก...';
@@ -1023,18 +729,12 @@ async function saveBasket() {
         remark:        item.remark,
         title:         `${item.material_name} - ${item.supplier_name} - ${item.delivery_date}`,
       });
-      
-      // Deduct quantity from PO if selected.
-      // item.material_name is the bare select value (e.g. "CO2 Gas"); po_data
-      // rows are keyed by the SAP code-prefixed name (e.g. "120001706 CO2 Gas").
-      // item.quantity is in the display unit (IBC for Bioligo (IMO)); the PO
-      // itself always tracks KG, so convert before deducting.
-      if (item.po_number) {
-        const poMaterialName = MatMap.toSAP(MatMap.toDB(item.material_name));
-        const deductKg = toPoDeductionKg(item.material_name, item.quantity);
-        await API.updatePoPendingQty(item.po_number, poMaterialName, deductKg);
-      }
-      
+
+      // No PO deduction here anymore — production dept doesn't assign a PO
+      // at creation time. Warehouse picks the PO for each row on
+      // history.html, which is when the po_data quantity actually gets
+      // deducted (see assignPoToRow() in js/history.js).
+
       successCount++;
     } catch (e) {
       errors.push(`${item.material_name}: ${e.message}`);
@@ -1150,34 +850,63 @@ function renderRequestTable(rows, startIdx = 0) {
     return;
   }
 
-  tbody.innerHTML = rows.map((r, i) => `
+  tbody.innerHTML = rows.map((r, i) => {
+    const isVoided = r.status === 'Cancelled' || r.status === 'Rescheduled';
+    const voidStyle = isVoided ? 'color:#dc2626;font-weight:600' : '';
+    const tag = parseChangeTag(r.remark);
+
+    let tagBadge = '';
+    if (tag?.type === 'RESCHED_TO') {
+      tagBadge = `<span class="badge" style="background:#fee2e2;color:#991b1b;margin-left:6px;white-space:nowrap">
+        <i class="bi bi-arrow-right-circle"></i> เลื่อน → ${Fmt.date(tag.value)}</span>`;
+    } else if (tag?.type === 'CANCELLED') {
+      tagBadge = `<span class="badge" style="background:#fee2e2;color:#991b1b;margin-left:6px;white-space:nowrap">
+        <i class="bi bi-x-circle"></i> ยกเลิก</span>`;
+    } else if (tag?.type === 'RESCHED_FROM') {
+      tagBadge = `<span class="badge" style="background:#dcfce7;color:#15803d;margin-left:6px;white-space:nowrap">
+        <i class="bi bi-arrow-left-circle"></i> เลื่อนจาก ${Fmt.date(tag.value)}</span>`;
+    }
+
+    return `
     <tr>
       <td class="table-check" style="text-align:center;">
         <input type="checkbox" class="chk-req-item" data-id="${r.id}" style="accent-color:var(--teal)">
       </td>
       <td class="td-center" style="color:var(--text-muted);font-size:12px">${startIdx + i + 1}</td>
-      <td>${Fmt.dateWithDay(r.delivery_date)}</td>
-      <td><strong>${r.plant ?? '-'}</strong></td>
-      <td>${r.material_name ?? '-'}</td>
-      <td>${r.supplier_name ?? '-'}</td>
-      <td class="td-right">
-        <strong>${Fmt.num(r.quantity)}</strong>
-        <small class="text-muted">${r.unit ?? ''}</small>
+      <td style="${voidStyle}">${Fmt.dateWithDay(r.delivery_date)}</td>
+      <td style="${voidStyle}"><strong>${r.plant ?? '-'}</strong></td>
+      <td style="${voidStyle}">${r.material_name ?? '-'}${tagBadge}</td>
+      <td style="${voidStyle}">${r.supplier_name ?? '-'}</td>
+      <td class="td-right" style="${voidStyle}">
+        ${isVoided ? '-' : `<strong>${Fmt.num(r.quantity)}</strong> <small class="text-muted">${r.unit ?? ''}</small>`}
       </td>
-      <td class="td-center">
-        ${r.tank_id ? `<code style="font-size:12px">${r.tank_id}</code>` : '-'}
+      <td class="td-center" style="${voidStyle}">
+        ${isVoided ? '-' : (r.tank_id ? `<code style="font-size:12px">${r.tank_id}</code>` : '-')}
       </td>
       <td class="td-center">${Fmt.statusBadge(r.status)}</td>
       <td class="td-center">
         <div class="table-actions">
+          ${!isVoided ? `<button class="btn btn-outline btn-sm btn-icon"
+                  title="เลื่อน/ยกเลิกรายการ" onclick="openReschedule(${r.id})">
+            <i class="bi bi-calendar2-week"></i>
+          </button>` : ''}
           <button class="btn btn-danger btn-sm btn-icon"
                   title="ลบ" onclick="confirmDelete(${r.id})">
             <i class="bi bi-trash-fill"></i>
           </button>
         </div>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
+
+/* Thin wrapper: look up the row from our own local list, then hand off
+   to the shared modal in js/app.js (also used nowhere else — request.html
+   is where production dept owns and amends their call-off plans). */
+window.openReschedule = function (id) {
+  const row = reqRows.find(r => r.id === id);
+  if (row) openRescheduleModal(row, loadRequestList);
+};
 
 function updateBulkDeleteState() {
   const selected = document.querySelectorAll('.chk-req-item:checked');

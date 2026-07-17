@@ -198,6 +198,9 @@ async function parseAndSaveExcel(arrayBuffer) {
     const qtyPending = parseFloat(getVal(23) || 0);
     const rawVendor = String(getVal(12) || '');
     const delivCompl = String(getVal(34) || '').trim();
+    const netPriceVal = getVal(29);
+    const netPrice = netPriceVal !== null && netPriceVal !== '' ? parseFloat(netPriceVal) : null;
+    const currency = String(getVal(30) || '').trim() || null;
 
     // Clean material code (strip leading zeros)
     const matCode = rawMaterial.replace(/^0+/, '');
@@ -219,8 +222,12 @@ async function parseAndSaveExcel(arrayBuffer) {
     else if (rawPlant === '3205') plant = 'SR';
     else continue; // Skip other plants
 
-    // Use raw vendor name from SAP Excel directly
-    const supplierName = rawVendor.trim();
+    // Normalize vendor name to the same Thai supplier naming convention used
+    // by master_supplier / calloff_plan (raw SAP vendor text doesn't match,
+    // e.g. "Linde (Thailand) PLC." vs "ลินเด้ (ประเทศไทย)") — otherwise
+    // supplier-filtered PO lookups (history.html's per-row PO dropdown) never
+    // match anything.
+    const supplierName = mapVendorToSupplier(rawVendor.trim());
 
     // Date formatting
     let docDate = null;
@@ -244,8 +251,14 @@ async function parseAndSaveExcel(arrayBuffer) {
       supplier_name: supplierName,
       order_qty: orderQty,
       qty_pending: qtyPending,
-      is_completed: (delivCompl === 'X' || qtyPending <= 0),
-      doc_date: docDate
+      // Follow SAP's own "Deliv. Compl." flag only — X means the PO line is
+      // formally closed. qty_pending reaching 0 without that flag doesn't
+      // mean closed (SAP hasn't finalized it), so it should still be
+      // selectable for call-offs.
+      is_completed: (delivCompl === 'X'),
+      doc_date: docDate,
+      net_price: netPrice,
+      currency: currency
     });
   }
 

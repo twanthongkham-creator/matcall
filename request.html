@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>MATCALL – เรียกเข้าวัตถุดิบ</title>
   <link rel="icon" href="matcall_logo.png" type="image/png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="theme-color" content="#0c8a7e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MATCALL">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="css/main.css">
@@ -80,6 +86,7 @@
       </div>
     </div>
     <div class="sidebar-section-label">เมนูหลัก</div>
+    <div class="nav-indicator-bg"></div>
     <ul class="sidebar-nav">
       <li><a class="nav-item" data-page="index.html" href="index.html">
         <span class="nav-icon"><i class="bi bi-house-fill"></i></span>
@@ -178,8 +185,11 @@
 
               <div class="form-divider" style="margin: 14px 0;"></div>
 
-              <!-- Single-date quantity + PO + Tank ID sit side by side; each
-                   only appears once it's relevant to the selected material. -->
+              <!-- Single-date quantity + Tank ID sit side by side; each only
+                   appears once it's relevant to the selected material. PO
+                   number is no longer specified here — production dept
+                   doesn't need to know it; warehouse assigns it later on
+                   history.html. -->
               <div class="form-flex-row">
                 <div class="form-group" id="qty-single-group" style="display: none;">
                   <label class="form-label required">จำนวน</label>
@@ -191,19 +201,6 @@
                   </div>
                 </div>
 
-                <div class="form-group" id="po-group" style="display: none;">
-                  <label class="form-label required">หมายเลข PO (SAP) *</label>
-                  <select class="form-control" id="sel-po">
-                    <option value="">เลือกหมายเลข PO...</option>
-                  </select>
-                  <div class="po-info" id="po-info-badge" style="margin-top: 4px; font-size: 12px; display: none; color: var(--teal);">
-                    <i class="bi bi-info-circle-fill"></i> Qty ยังไม่รับตาม PO: <strong id="po-pending-qty">0.00</strong> kg
-                    <span id="po-deduction-wrap" style="display: none; color: #d97706; margin-left: 8px;">
-                      <i class="bi bi-arrow-right-short"></i> ยอดคงเหลือหลังหักจำนวนเรียกเข้า: <strong id="po-remaining-after">0.00</strong> kg
-                    </span>
-                  </div>
-                </div>
-
                 <div class="form-group" id="tank-id-group" style="display: none;">
                   <label class="form-label">Tank ID</label>
                   <div id="tank-input-container">
@@ -212,16 +209,11 @@
                 </div>
               </div>
 
-              <!-- Multiple Dates Quantities (+ Tank ID per date for CO2) -->
-              <div id="qty-multi-group" style="display: none; margin-top: 10px;">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                  <label class="form-label required" style="margin-bottom: 0;">ระบุจำนวนเรียกเข้าในแต่ละวัน</label>
-                  <div id="qty-multi-header" style="display: flex; gap: 6px;"></div>
-                </div>
-                <div id="qty-multi-container" style="background: rgba(0, 0, 0, 0.02); padding: 4px 12px; border-radius: 8px; border: 1px solid var(--border); margin-top: 6px; margin-bottom: 10px;">
-                  <!-- Dynamic date rows -->
-                </div>
-                <input type="text" id="sel-unit-multi" style="display:none" readonly disabled value="kg">
+              <!-- Multiple delivery dates: no inline per-date quantity form —
+                   each selected date is added to the Basket directly, and
+                   quantity/Tank ID are then edited there instead. -->
+              <div id="multi-date-hint" class="quota-info" style="display:none; margin-top: 8px;">
+                <i class="bi bi-info-circle"></i> เลือกหลายวันที่ — กด "เพิ่มใส่ตะกร้า" แล้วไปปรับจำนวน/Tank ID ในตะกร้าด้านล่างได้เลย
               </div>
 
               <div style="margin-top: 10px;">
@@ -315,6 +307,7 @@
               <select class="form-control" id="sel-filter-status">
                 <option value="">ทั้งหมด</option>
                 <option value="Active">Active</option>
+                <option value="Rescheduled">Rescheduled</option>
                 <option value="Cancelled">Cancelled</option>
               </select>
             </div>
@@ -392,7 +385,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="js/app.js"></script>
-<script src="js/request.js"></script>
+<script src="js/app.js?v=20260717d"></script>
+<script src="js/request.js?v=20260717f"></script>
 </body>
 </html>

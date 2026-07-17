@@ -240,6 +240,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const deptColor = { production: 'bg-success', warehouse: 'bg-primary', admin: 'bg-warning text-dark' };
             const dept = u.department || (u.role === 'Admin' ? 'admin' : 'production');
             const deptBadge = `<span class="badge ${deptColor[dept] || 'bg-secondary'} d-inline-flex align-items-center gap-1">${deptMap[dept] || dept}</span>`;
+            const emailDisplay = u.email ? `<span style="font-size:12px;color:#475569">${u.email}</span>` : '<span class="text-muted" style="font-size:11px">ยังไม่ระบุ</span>';
 
             // Lock Central Admin delete or deleting oneself
             const deleteDisabled = (u.username === 'admin' || u.username === currentUser.username) ? 'disabled' : '';
@@ -250,6 +251,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               <tr data-user-id="${u.id}">
                 <td class="fw-bold text-navy">${u.username}</td>
                 <td>${u.name}</td>
+                <td>${emailDisplay}</td>
                 <td>${plantLimit}</td>
                 <td>${roleBadge}</td>
                 <td>${deptBadge}</td>
@@ -492,6 +494,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       usrname.value = usr.username;
       usrname.disabled = false; // allow editing username
       document.getElementById('usr-name').value = usr.name;
+      document.getElementById('usr-email').value = usr.email || '';
       document.getElementById('usr-role').value = usr.role;
       document.getElementById('usr-department').value = usr.department || (usr.role === 'Admin' ? 'admin' : 'production');
       document.getElementById('usr-password').value = usr.password || (usr.role === 'Admin' ? '1234' : '5678');
@@ -501,6 +504,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       idInput.value = '';
       document.getElementById('usr-password').value = '5678';
       document.getElementById('usr-department').value = 'production';
+      document.getElementById('usr-email').value = '';
       usrname.disabled = false;
     }
 
@@ -540,6 +544,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const payload = {
         username: document.getElementById('usr-username').value.trim().toLowerCase(),
         name: document.getElementById('usr-name').value.trim(),
+        email: document.getElementById('usr-email').value.trim() || null,
         role: document.getElementById('usr-role').value,
         department: document.getElementById('usr-department').value,
         plant_code: currentUser.plant_code ? currentUser.plant_code : (document.getElementById('usr-role').value === 'Admin' ? null : document.getElementById('usr-plant').value || null),
