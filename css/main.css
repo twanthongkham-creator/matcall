@@ -217,6 +217,13 @@ input, select, textarea { font-family: inherit; }
   font-size: 10px; color: rgba(255,255,255,0.5);
 }
 
+/* Profile nav item only exists for the mobile bottom bar (desktop already
+   shows full user info + logout in .sidebar-footer) — hidden by default,
+   shown via responsive.css under the mobile breakpoint. */
+.mobile-profile-item {
+  display: none;
+}
+
 /* Sidebar Overlay (mobile) */
 #sidebar-overlay {
   display: none;

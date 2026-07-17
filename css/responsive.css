@@ -90,6 +90,13 @@
     display: none !important;
   }
 
+  /* Profile item: hidden on desktop (see main.css), shown here as a normal
+     bottom-bar tab so mobile users always have a way to see their info
+     and log out without the full sidebar footer. */
+  .sidebar-nav li.mobile-profile-item {
+    display: flex !important;
+  }
+
   /* Compact button styling on mobile bottom bar */
   .nav-item {
     display: flex !important;
@@ -117,25 +124,15 @@
     place-items: center !important;
     width: auto !important;
     height: auto !important;
-    font-size: 19px !important;
+    font-size: 21px !important;
     margin: 0 !important;
     transform: scale(1) translateY(0);
     transition: transform var(--move-duration) var(--spring);
   }
 
-  /* Label stays hidden for resting items, pops in with a little slide/scale
-     bounce once its item becomes active — the bit of "ลูกเล่น" flair. */
+  /* Icon-only mobile nav: labels are never shown, even for the active item. */
   .nav-item .nav-label {
-    display: block !important;
-    font-size: 0 !important;
-    max-height: 0;
-    max-width: 60px;
-    opacity: 0;
-    transform: translateY(-3px) scale(0.6);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    transition: font-size 220ms var(--spring), max-height 220ms ease, opacity 180ms ease, transform 220ms var(--spring);
+    display: none !important;
   }
 
   .nav-item:hover {
@@ -147,17 +144,12 @@
     font-weight: 700 !important;
   }
 
-  /* Playful pop: icon bounces up + scales past 100% on activation */
+  /* Playful pop: subtle bounce on activation. Kept mild (not the previous
+     1.22x) because icons with fine detail (gear teeth, spreadsheet grid
+     lines) visibly distort/blur when scaled up too far via CSS transform —
+     a plain color/pill change already communicates "active" clearly. */
   .nav-item.active .nav-icon {
-    transform: scale(1.22) translateY(-2px);
-  }
-
-  .nav-item.active .nav-label {
-    font-size: 9.5px !important;
-    max-height: 14px;
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    margin-top: 1px;
+    transform: scale(1.08);
   }
 
   /* Sliding pill highlight that springs behind whichever item is active */

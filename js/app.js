@@ -721,6 +721,51 @@ const Auth = {
   }
 };
 
+/* ── Mobile Profile Modal ───────────────────────────────────────
+   The mobile bottom nav bar is icon-only and has no room for the full
+   user-badge that desktop shows in .sidebar-footer, so tapping the
+   "โปรไฟล์" tab opens this modal instead — same info, plus a Log out
+   button. */
+function showProfileModal() {
+  const user = Auth.getUser();
+  if (!user) return;
+
+  const dept = Auth.getDept();
+  const deptLabel = {
+    production: '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(52,211,153,0.15);color:#059669;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700"><i class="bi bi-gear"></i>แผนกผลิต</span>',
+    warehouse:  '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(129,140,248,0.2);color:#4f46e5;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700"><i class="bi bi-box-seam"></i>แผนกคลัง</span>',
+    admin:      '<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(251,191,36,0.18);color:#b45309;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700"><i class="bi bi-shield-fill-check"></i>Admin</span>',
+  };
+  const avatar = user.plant_code ? user.plant_code : (user.role === 'Admin' ? 'SA' : (user.name ? user.name.substring(0, 2).toUpperCase() : 'US'));
+
+  document.getElementById('__profile_modal')?.remove();
+
+  const html = `
+  <div id="__profile_modal" class="modal-backdrop" style="display:flex">
+    <div class="modal-box" style="max-width:340px">
+      <div class="modal-header">
+        <span class="modal-title"><i class="bi bi-person-circle"></i> โปรไฟล์ผู้ใช้งาน</span>
+        <button class="modal-close" onclick="document.getElementById('__profile_modal').remove()">✕</button>
+      </div>
+      <div class="modal-body" style="text-align:center">
+        <div style="width:64px;height:64px;border-radius:50%;background:#0c8a7e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;margin:0 auto 12px">${avatar}</div>
+        <div style="font-size:16px;font-weight:700;color:var(--text-primary)">${user.name ?? '-'}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${user.plant_code ? `โรงงาน ${user.plant_code}` : 'ส่วนกลาง'}</div>
+        <div style="margin-top:10px">${deptLabel[dept] ?? ''}</div>
+        ${user.username ? `<div style="font-size:11px;color:var(--text-muted);margin-top:14px">Username: ${user.username}</div>` : ''}
+      </div>
+      <div class="modal-footer" style="justify-content:center">
+        <button class="btn btn-danger" id="__profile_logout" style="width:100%"><i class="bi bi-box-arrow-right"></i> Log out</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.getElementById('__profile_logout').onclick = () => {
+    document.getElementById('__profile_modal')?.remove();
+    Modal.confirm('ยืนยันการออกจากระบบ', 'ต้องการ Log out ออกจากระบบใช่หรือไม่?', () => Auth.logout(), 'info');
+  };
+}
+
 /* ── Init on DOM ready ──────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   // Dynamic global logo replacement
@@ -749,6 +794,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   Sidebar.init();
   setActiveNav();
+
+  // Mobile bottom-bar "โปรไฟล์" tab → user info + logout modal
+  document.getElementById('btn-mobile-profile')?.addEventListener('click', showProfileModal);
   positionNavIndicator();
   // Re-run once more after layout/fonts settle (icons/webfont can shift widths)
   setTimeout(positionNavIndicator, 200);
