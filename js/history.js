@@ -188,7 +188,7 @@ async function renderPoSummary() {
   try {
     const poMaterialName = MatMap.toSAP(activeMaterial);
     const pos = await API.getPOs(plant, poMaterialName, supplier);
-    const active = pos.filter(p => !p.is_completed && parseFloat(p.qty_pending) > 0);
+    const active = pos.filter(p => !p.is_completed && p.is_active !== false && parseFloat(p.qty_pending) > 0);
 
     const poMap = {};
     active.forEach(p => {
@@ -262,7 +262,7 @@ async function renderPoBulkAssignBar() {
     // normalized Thai supplier name.
     const pos = await API.getPOs(plant, poMaterialName, null);
     // Only offer POs SAP hasn't marked "Deliv. Compl." (X) — X means closed.
-    const open = pos.filter(p => !p.is_completed);
+    const open = pos.filter(p => !p.is_completed && p.is_active !== false);
     const poMap = {};
     open.forEach(p => {
       if (!poMap[p.po_number]) poMap[p.po_number] = { price: p.net_price, currency: p.currency };
@@ -381,6 +381,7 @@ function renderHistoryTable(rows) {
       <td class="td-center" style="font-size:12px;color:var(--text-muted)">${i + 1}</td>
       <td style="white-space:nowrap;${voidStyle}">${Fmt.dateWithDay(r.delivery_date)}</td>
       <td style="${voidStyle}"><strong>${r.plant ?? '-'}</strong></td>
+      <td style="${voidStyle}">${r.requester_name ?? '-'}</td>
       <td style="${voidStyle}">${r.material_name ?? '-'}${tagBadge}</td>
       <td style="${voidStyle}">${r.supplier_name ?? '-'}</td>
       <td style="${voidStyle}">${renderPoCell(r, isVoided)}</td>
@@ -444,7 +445,7 @@ async function populateAssignablePoSelects(rows) {
       // "Deliv. Compl." (X) — X means that PO line is formally closed, so it
       // shouldn't be offered as a call-off target even if it once had 0
       // remaining qty at some point without being flagged closed.
-      const open = pos.filter(p => !p.is_completed);
+      const open = pos.filter(p => !p.is_completed && p.is_active !== false);
       const poMap = {};
       open.forEach(p => {
         if (!poMap[p.po_number]) {

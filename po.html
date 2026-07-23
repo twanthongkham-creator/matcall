@@ -100,20 +100,20 @@
       <!-- Search & Filters -->
       <div class="card mb-4">
         <div class="card-body">
-          <div class="filter-row">
-            <div class="filter-group">
-              <label class="filter-label">ค้นหาหมายเลข PO</label>
-              <input type="text" class="form-control" id="inp-po-search" placeholder="พิมพ์เลข PO..." style="min-width:180px">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-3 col-sm-6">
+              <label class="form-label" style="font-size:13px;font-weight:600;color:var(--text-muted)">ค้นหาหมายเลข PO</label>
+              <input type="text" class="form-control" id="inp-po-search" placeholder="พิมพ์เลข PO...">
             </div>
-            <div class="filter-group">
-              <label class="filter-label">โรงงาน (PLANT)</label>
-              <select class="form-control" id="sel-po-plant" style="min-width:140px">
+            <div class="col-md-2 col-sm-6">
+              <label class="form-label" style="font-size:13px;font-weight:600;color:var(--text-muted)">โรงงาน (PLANT)</label>
+              <select class="form-control" id="sel-po-plant">
                 <option value="all">ทั้งหมด</option>
               </select>
             </div>
-            <div class="filter-group">
-              <label class="filter-label">วัตถุดิบ</label>
-              <select class="form-control" id="sel-po-material" style="min-width:160px">
+            <div class="col-md-3 col-sm-6">
+              <label class="form-label" style="font-size:13px;font-weight:600;color:var(--text-muted)">วัตถุดิบ</label>
+              <select class="form-control" id="sel-po-material">
                 <option value="all">ทั้งหมด</option>
                 <option value="120001706 CO2 Gas">CO2 Gas (120001706)</option>
                 <option value="120001687 น้ำตาลเหลว">น้ำตาลเหลว (120001687)</option>
@@ -121,17 +121,16 @@
                 <option value="120001474 Bioligo (IMO)">Bioligo (IMO) (120001474)</option>
               </select>
             </div>
-            <div class="filter-group">
-              <label class="filter-label">สถานะ PO</label>
-              <select class="form-control" id="sel-po-status" style="min-width:130px">
+            <div class="col-md-3 col-sm-4">
+              <label class="form-label" style="font-size:13px;font-weight:600;color:var(--text-muted)">สถานะ PO</label>
+              <select class="form-control" id="sel-po-status">
                 <option value="active">ยังไม่ครบ (Active)</option>
                 <option value="completed">ครบแล้ว (Closed)</option>
                 <option value="all">ทั้งหมด</option>
               </select>
             </div>
-            <div class="filter-group" style="justify-content:flex-end">
-              <label class="filter-label">&nbsp;</label>
-              <button class="btn btn-ghost" id="btn-po-reset-filter" title="ล้างการกรอง"><i class="bi bi-arrow-counterclockwise"></i></button>
+            <div class="col-md-1 col-sm-2 text-end">
+              <button class="btn btn-light w-100 border" id="btn-po-reset-filter" title="ล้างการกรอง" style="height:38px"><i class="bi bi-arrow-counterclockwise"></i></button>
             </div>
           </div>
         </div>
@@ -139,9 +138,9 @@
 
       <!-- PO Table -->
       <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <span><i class="bi bi-table"></i> รายการสั่งซื้อใบสั่งซื้อ PO ทั้งหมดจาก SAP</span>
-          <span class="badge bg-teal-light text-teal-dark px-3 py-2" style="font-size:12px">ทั้งหมด <strong id="po-count">0</strong> รายการ</span>
+        <div class="card-header d-flex justify-content-between align-items-center bg-white border-bottom-0 pb-0 pt-3">
+          <h5 class="m-0" style="font-size:16px; font-weight:700; color:var(--primary-dark)"><i class="bi bi-table text-primary me-2"></i>รายการใบสั่งซื้อ (PO) ทั้งหมดจากระบบ SAP</h5>
+          <span class="badge rounded-pill bg-light text-dark border px-3 py-2" style="font-size:12px; font-weight:600">ทั้งหมด <strong id="po-count" class="text-primary fs-6">0</strong> รายการ</span>
         </div>
         <div class="card-body" style="padding:0">
           <div class="table-wrap">
@@ -158,7 +157,9 @@
                   <th class="th-right">จำนวนทั้งหมด</th>
                   <th class="th-right">Qty ยังไม่รับ</th>
                   <th class="th-center">สถานะ</th>
+                  <th class="th-right">Net Price</th>
                   <th class="th-center">วันที่ออกเอกสาร</th>
+                  <th class="th-center">จัดการ</th>
                 </tr>
               </thead>
               <tbody id="po-table-body">

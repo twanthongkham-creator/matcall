@@ -373,6 +373,30 @@ const API = {
 
   async savePOs(posArray) {
     try {
+      // 0. Preserve inactive statuses before wiping
+      let inactiveMap = {};
+      try {
+        const { data: inactivePOs } = await _supabase.from('po_data')
+          .select('po_number, po_item')
+          .eq('is_active', false);
+        if (inactivePOs) {
+          for (const p of inactivePOs) {
+            inactiveMap[`${p.po_number}_${p.po_item}`] = true;
+          }
+        }
+      } catch (e) {
+        console.warn("Could not fetch inactive POs (is_active column might not exist yet)", e);
+      }
+
+      // Apply preserved statuses to the incoming payload
+      for (const p of posArray) {
+        if (inactiveMap[`${p.po_number}_${p.po_item}`]) {
+          p.is_active = false;
+        } else {
+          p.is_active = true;
+        }
+      }
+
       // 1. Delete all existing POs
       const { error: delError } = await _supabase.from('po_data').delete().neq('id', 0);
       if (delError) throw delError;
@@ -450,6 +474,24 @@ const API = {
       }
     }
     localStorage.setItem('fallback_pos', JSON.stringify(localPOs));
+  },
+
+  async togglePoActive(id, isActive) {
+    try {
+      const { error } = await _supabase.from('po_data')
+        .update({ is_active: isActive })
+        .eq('id', id);
+      if (error) throw error;
+    } catch (e) {
+      console.warn("Error updating is_active", e);
+      // Fallback
+      let localPOs = JSON.parse(localStorage.getItem('fallback_pos') || '[]');
+      const p = localPOs.find(x => x.id === id);
+      if (p) {
+        p.is_active = isActive;
+        localStorage.setItem('fallback_pos', JSON.stringify(localPOs));
+      }
+    }
   },
 };
 

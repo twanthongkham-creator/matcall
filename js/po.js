@@ -10,6 +10,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const plants = await API.getPlants();
     const selPlant = document.getElementById('sel-po-plant');
     populateSelect(selPlant, plants, 'plant_code', 'plant_name', 'ทั้งหมด', true);
+
+    // Auto-select plant if user is restricted to a plant
+    const user = Auth.getUser();
+    if (user && user.plant_code) {
+      if (selPlant) {
+        selPlant.value = user.plant_code;
+        if (!Auth.isAdmin()) {
+          selPlant.disabled = true;
+        }
+      }
+    }
   } catch (e) {
     console.error("Failed loading plants:", e);
   }
@@ -25,8 +36,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('sel-po-status')?.addEventListener('change', renderPOTable);
   document.getElementById('btn-po-reset-filter')?.addEventListener('click', resetFilters);
 
-  // ── Department access guard: hide import buttons for non-admin ──
-  if (!Auth.isAdmin()) {
+  // ── Department access guard: hide import buttons for non-admin/non-warehouse ──
+  if (!Auth.isAdmin() && !Auth.isWarehouse()) {
     const importActions = document.querySelector('.import-actions');
     if (importActions) importActions.style.display = 'none';
   }
@@ -93,8 +104,10 @@ function renderPOTable() {
     const statusClass = p.is_completed ? 'po-closed' : 'po-active';
     const statusIcon = p.is_completed ? '<i class="bi bi-check-circle-fill"></i>' : '<i class="bi bi-arrow-repeat"></i>';
 
+    const rowOpacity = (p.is_active === false) ? '0.5' : '1';
+    
     return `
-      <tr>
+      <tr style="opacity: ${rowOpacity};">
         <td class="td-center" style="color:var(--text-muted);font-size:12px">${idx + 1}</td>
         <td><strong>${p.po_number}</strong></td>
         <td>${p.po_item}</td>
@@ -109,10 +122,30 @@ function renderPOTable() {
         <td class="td-center">
           <span class="po-status-badge ${statusClass}">${statusIcon} ${statusText}</span>
         </td>
+        <td class="td-right"><strong>${p.net_price ? (Fmt.num(p.net_price, 2) + ' ' + (p.currency || '')) : '-'}</strong></td>
         <td class="td-center">${p.doc_date ? Fmt.date(p.doc_date) : '-'}</td>
+        <td class="td-center">
+          <button class="btn btn-sm ${p.is_active !== false ? 'btn-outline-danger' : 'btn-outline-success'}" 
+                  onclick="toggleActive(${p.id}, ${p.is_active !== false})" 
+                  style="font-size:12px; padding: 2px 6px;">
+            ${p.is_active !== false ? '<i class="bi bi-x-circle"></i> ปิดใช้งาน' : '<i class="bi bi-check-circle"></i> เปิดใช้งาน'}
+          </button>
+        </td>
       </tr>
     `;
   }).join('');
+}
+
+/* ── Toggle Active ─────────────────────────────────────────── */
+async function toggleActive(id, currentActive) {
+  const newActive = !currentActive;
+  try {
+    await API.togglePoActive(id, newActive);
+    Toast.success(newActive ? "เปิดใช้งาน PO แล้ว" : "ปิดใช้งาน PO แล้ว");
+    await loadPOs();
+  } catch(e) {
+    Toast.error("อัปเดตสถานะไม่สำเร็จ: " + e.message);
+  }
 }
 
 /* ── Reset Filters ─────────────────────────────────────────── */

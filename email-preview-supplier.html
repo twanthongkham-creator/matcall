@@ -131,6 +131,7 @@
                   <th class="th-center">#</th>
                   <th>วัน</th>
                   <th>วันที่</th>
+                  <th>ผู้ร้องขอ</th>
                   <th>Tank ID</th>
                   <th class="th-right">จำนวน</th>
                   <th class="th-center">หน่วย</th>
@@ -239,6 +240,7 @@ try {
     return `<tr>
       <td style="font-family:'Browallia New',sans-serif;text-align:center;border:1px solid #d1d9e6;padding:4px 6px;font-size:15px;color:${textColor};${textDecoration}">${day}${tagLabel}</td>
       <td style="font-family:'Browallia New',sans-serif;text-align:center;border:1px solid #d1d9e6;padding:4px 6px;font-size:15px;color:${textColor};${textDecoration}">${dateStr}</td>
+      <td style="font-family:'Browallia New',sans-serif;text-align:center;border:1px solid #d1d9e6;padding:4px 6px;font-size:15px;color:${textColor};${textDecoration}">${r.requester_name || '-'}</td>
       ${isCO2 ? `<td style="font-family:'Browallia New',sans-serif;text-align:center;border:1px solid #d1d9e6;padding:4px 6px;font-size:15px;color:${textColor};font-weight:700;${textDecoration}">${isVoided ? '-' : (r.tank_id ?? '-')}</td>` : ''}
       <td style="font-family:'Browallia New',sans-serif;text-align:center;border:1px solid #d1d9e6;padding:4px 6px;font-size:15px;color:${qtyColor};font-weight:700;${textDecoration}">${qtyDisplay}</td>
     </tr>`;
@@ -252,9 +254,10 @@ try {
     ? `${Fmt.num(totalQty)} IBC (${Fmt.num(totalQty * 1350)} kg)`
     : `${Fmt.num(totalQty)} ${items[0]?.unit ?? 'kg'}`;
 
-  const colSpan = isCO2 ? 3 : 2;
+  const colSpan = isCO2 ? 4 : 3;
   const headerCols = `<th style="font-family:'Browallia New',sans-serif;padding:4px;border:1px solid #fff;background:#1d3a70;color:#fff;font-size:17px">Day</th>
     <th style="font-family:'Browallia New',sans-serif;padding:4px;border:1px solid #fff;background:#1d3a70;color:#fff;font-size:17px">Date</th>
+    <th style="font-family:'Browallia New',sans-serif;padding:4px;border:1px solid #fff;background:#1d3a70;color:#fff;font-size:17px">ผู้ร้องขอ</th>
     ${isCO2 ? "<th style=\"font-family:'Browallia New',sans-serif;padding:4px;border:1px solid #fff;background:#1d3a70;color:#fff;font-size:17px\">Tank ID</th>" : ''}
     <th style="font-family:'Browallia New',sans-serif;padding:4px;border:1px solid #fff;background:#1d3a70;color:#fff;font-size:17px">Quantity</th>`;
 
@@ -312,6 +315,7 @@ try {
       <td class="td-center">${i+1}</td>
       <td>${thDays[d.getDay()]}</td>
       <td>${Fmt.date(r.delivery_date)}</td>
+      <td>${r.requester_name || '-'}</td>
       <td class="td-center">${r.tank_id ?? '-'}</td>
       <td class="td-right">${Fmt.num(r.quantity)}</td>
       <td class="td-center">${r.unit ?? '-'}</td>

@@ -399,6 +399,19 @@ const Fmt = {
     return `${day}/${month}/${year}`;
   },
 
+  /** "2026-06-11T14:30:00Z" → "11/06/2026 14:30" */
+  dateTime(str) {
+    if (!str) return '-';
+    const d = new Date(str);
+    if (isNaN(d)) return str;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const hr = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hr}:${min}`;
+  },
+
   /** "2026-06-11" → "จันทร์ 11/06/2026" */
   dateWithDay(str) {
     if (!str) return '-';
@@ -537,7 +550,7 @@ const Auth = {
     const dept = this.getDept();
     const access = {
       production: ['index.html', 'request.html', 'history.html'],
-      warehouse:  ['index.html', 'receive.html', 'history.html', 'email-preview-supplier.html', 'email-preview-pan.html'],
+      warehouse:  ['index.html', 'receive.html', 'history.html', 'email-preview-supplier.html', 'email-preview-pan.html', 'po.html'],
     };
     return (access[dept] || []).includes(page);
   },
@@ -597,7 +610,7 @@ const Auth = {
     // ── Sidebar menu visibility based on department ──────────
     const menuRules = {
       production: ['index.html', 'request.html', 'history.html'],
-      warehouse:  ['index.html', 'receive.html', 'history.html'],
+      warehouse:  ['index.html', 'receive.html', 'history.html', 'po.html'],
       admin:      ['index.html', 'request.html', 'receive.html', 'history.html', 'po.html', 'settings.html'],
     };
     const dept = user.department || (user.role === 'Admin' ? 'admin' : 'production');

@@ -728,6 +728,7 @@ async function saveBasket() {
         target_week:   item.target_week,
         remark:        item.remark,
         title:         `${item.material_name} - ${item.supplier_name} - ${item.delivery_date}`,
+        requester_name: Auth.getUser()?.name || '-',
       });
 
       // No PO deduction here anymore — production dept doesn't assign a PO
@@ -873,6 +874,7 @@ function renderRequestTable(rows, startIdx = 0) {
         <input type="checkbox" class="chk-req-item" data-id="${r.id}" style="accent-color:var(--teal)">
       </td>
       <td class="td-center" style="color:var(--text-muted);font-size:12px">${startIdx + i + 1}</td>
+      <td style="color:var(--text-muted);font-size:13px;white-space:nowrap">${Fmt.dateTime(r.created_at)}</td>
       <td style="${voidStyle}">${Fmt.dateWithDay(r.delivery_date)}</td>
       <td style="${voidStyle}"><strong>${r.plant ?? '-'}</strong></td>
       <td style="${voidStyle}">${r.material_name ?? '-'}${tagBadge}</td>
