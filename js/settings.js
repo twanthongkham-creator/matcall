@@ -405,8 +405,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             total_quota: total ? parseFloat(total) : null
           });
           Toast.success('เพิ่มรอบสัญญาโควต้าสำเร็จ');
-          document.getElementById('new-quota-start').value = '';
-          document.getElementById('new-quota-end').value = '';
+          if (fpNewQuotaStart) fpNewQuotaStart.clear();
+          if (fpNewQuotaEnd) fpNewQuotaEnd.clear();
           document.getElementById('new-quota-pct').value = '';
           document.getElementById('new-quota-total').value = '';
           renderQuotaHistory(sup.id);
@@ -424,6 +424,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       quotaHistSec.style.display = 'none';
     }
     
+    // Clear flatpickr inputs upon opening/resetting supplier modal
+    if (fpSupStart) fpSupStart.clear();
+    if (fpSupEnd) fpSupEnd.clear();
+    if (fpNewQuotaStart) fpNewQuotaStart.clear();
+    if (fpNewQuotaEnd) fpNewQuotaEnd.clear();
+
     Modal.show('supplier-modal');
   }
 
@@ -524,21 +530,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     toggleUserPlantDiv();
+    toggleEmailJsSection();
     Modal.show('user-modal');
   }
 
   function toggleUserPlantDiv() {
     const role = document.getElementById('usr-role').value;
-    const plantDiv = document.getElementById('usr-plant-div');
+    const plantSel = document.getElementById('usr-plant');
+    const plantSelParent = plantSel?.closest('.mb-3');
     if (role === 'Admin') {
-      plantDiv.style.display = 'none';
-      document.getElementById('usr-plant').value = '';
+      if (plantSelParent) plantSelParent.style.display = 'none';
+      plantSel.value = '';
     } else {
-      plantDiv.style.display = 'block';
+      if (plantSelParent) plantSelParent.style.display = 'block';
+    }
+    toggleEmailJsSection();
+  }
+
+  function toggleEmailJsSection() {
+    const dept = document.getElementById('usr-department').value;
+    const section = document.getElementById('usr-emailjs-section');
+    if (section) {
+      section.style.display = dept === 'warehouse' ? 'block' : 'none';
     }
   }
 
   document.getElementById('usr-role').onchange = () => toggleUserPlantDiv();
+  document.getElementById('usr-department').onchange = () => toggleEmailJsSection();
   
   if (isAdmin) {
     document.getElementById('btn-add-user').onclick = () => openUserModal();
@@ -613,6 +631,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       Toast.error('บันทึกไม่สำเร็จ: ' + err.message);
     }
   };
+
+  // Initialize flatpickr on date fields
+  let fpSupStart, fpSupEnd, fpNewQuotaStart, fpNewQuotaEnd;
+  if (typeof flatpickr !== 'undefined') {
+    const config = {
+      altInput: true,
+      altFormat: 'd/m/Y',
+      dateFormat: 'Y-m-d',
+      allowInput: true
+    };
+    fpSupStart = flatpickr('#sup-start', config);
+    fpSupEnd = flatpickr('#sup-end', config);
+    fpNewQuotaStart = flatpickr('#new-quota-start', config);
+    fpNewQuotaEnd = flatpickr('#new-quota-end', config);
+  }
 
   // Init
   loadAllData();

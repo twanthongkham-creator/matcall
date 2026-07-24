@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="css/main.css">
   <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <link rel="stylesheet" href="css/responsive.css?v=20260717g">
   <style>
     .nav-tabs {
@@ -74,6 +75,28 @@
         padding: 6px 2px;
         gap: 3px;
       }
+    }
+    /* Normalize input & select height across all modals */
+    #user-modal .form-control-sm,
+    #user-modal .form-select-sm,
+    #supplier-modal .form-control-sm,
+    #supplier-modal .form-select-sm,
+    #plant-modal .form-control-sm,
+    #plant-modal .form-select-sm {
+      height: 36px;
+      padding-top: 0;
+      padding-bottom: 0;
+      line-height: 36px;
+      font-size: 13px;
+    }
+    /* Consistent label style across all modals */
+    #user-modal .form-label,
+    #supplier-modal .form-label,
+    #plant-modal .form-label {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: var(--text-primary, #1a202c);
     }
   </style>
 </head>
@@ -261,100 +284,101 @@
 
 <!-- Add/Edit Supplier Modal -->
 <div id="supplier-modal" class="modal-backdrop" style="display:none">
-  <div class="modal-box" style="max-width:500px">
+  <div class="modal-box" style="max-width:620px; width:95vw;">
     <div class="modal-header">
       <span class="modal-title" id="supplier-modal-title">จัดการข้อมูล Supplier</span>
       <button class="modal-close" onclick="Modal.hide('supplier-modal')">✕</button>
     </div>
     <form id="supplier-form">
       <input type="hidden" id="supplier-id">
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">โรงงาน *</label>
-          <select id="sup-plant" class="form-select form-select-sm" required></select>
+      <div class="modal-body" style="overflow:visible;">
+        <!-- Row 1: โรงงาน | วัตถุดิบ -->
+        <div class="row g-3 mb-3">
+          <div class="col-6">
+            <label class="form-label">โรงงาน *</label>
+            <select id="sup-plant" class="form-select form-select-sm" required></select>
+          </div>
+          <div class="col-6">
+            <label class="form-label">วัตถุดิบ *</label>
+            <select id="sup-material" class="form-select form-select-sm" required>
+              <option value="CO2">CO2</option>
+              <option value="HFS42%">HFS42%</option>
+              <option value="Liquid Sugar">Liquid Sugar</option>
+              <option value="Bioligo IMO">Bioligo (IMO)</option>
+            </select>
+          </div>
         </div>
-        <div class="mb-3">
-          <label class="form-label">วัตถุดิบ *</label>
-          <select id="sup-material" class="form-select form-select-sm" required>
-            <option value="CO2">CO2</option>
-            <option value="HFS42%">HFS42%</option>
-            <option value="Liquid Sugar">Liquid Sugar</option>
-            <option value="Bioligo IMO">Bioligo (IMO)</option>
-          </select>
+        <!-- Row 2: ชื่อ Supplier | อีเมลติดต่อ -->
+        <div class="row g-3 mb-3">
+          <div class="col-6">
+            <label class="form-label">ชื่อ Supplier *</label>
+            <input type="text" id="sup-name" class="form-control form-control-sm" required placeholder="เช่น บจก. ลินเด้">
+          </div>
+          <div class="col-6">
+            <label class="form-label">อีเมลติดต่อ (คั่นด้วย `;`)</label>
+            <input type="text" id="sup-email" class="form-control form-control-sm" placeholder="email1@test.com; email2@test.com">
+          </div>
         </div>
-        <div class="mb-3">
-          <label class="form-label">ชื่อ Supplier *</label>
-          <input type="text" id="sup-name" class="form-control form-control-sm" required placeholder="เช่น บจก. ลินเด้">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">อีเมลติดต่อ (คั่นด้วยเครื่องหมาย semicolon `;` )</label>
-          <input type="text" id="sup-email" class="form-control form-control-sm" placeholder="email1@test.com; email2@test.com">
-        </div>
-        <!-- Initial Quota Section for new supplier -->
+
+        <!-- Initial Quota Section (new supplier) -->
         <div id="initial-quota-section">
-          <div class="row">
-            <div class="col-6 mb-3">
+          <div class="row g-3">
+            <div class="col-6">
               <label class="form-label">สัญญาเริ่ม</label>
               <input type="date" id="sup-start" class="form-control form-control-sm">
             </div>
-            <div class="col-6 mb-3">
+            <div class="col-6">
               <label class="form-label">สัญญาหมดอายุ</label>
               <input type="date" id="sup-end" class="form-control form-control-sm">
             </div>
-          </div>
-          <div class="row">
-            <div class="col-6 mb-3">
+            <div class="col-6">
               <label class="form-label">โควต้า (%)</label>
               <input type="number" id="sup-quota-pct" class="form-control form-control-sm" min="0" max="100" step="0.1">
             </div>
-            <div class="col-6 mb-3">
+            <div class="col-6">
               <label class="form-label">โควต้ารวม (kg)</label>
               <input type="number" id="sup-quota-total" class="form-control form-control-sm" min="0">
             </div>
           </div>
         </div>
 
-        <!-- Quota History Section for editing existing supplier -->
+        <!-- Quota History Section (existing supplier) -->
         <div id="quota-history-section" style="display:none; margin-top:20px; border-top:1px solid #e2e8f0; padding-top:15px;">
           <label class="form-label fw-bold text-navy mb-2"><i class="bi bi-calendar3"></i> ประวัติและรอบสัญญาโควต้า</label>
-          <div class="table-responsive mb-3" style="max-height: 200px; overflow-y: auto;">
-            <table class="table table-sm" style="font-size: 11px; vertical-align: middle;">
+          <div class="table-responsive mb-3" style="max-height:200px; overflow-y:auto;">
+            <table class="table table-sm" style="font-size:11px; vertical-align:middle;">
               <thead>
                 <tr>
-                  <th>เริ่มสัญญา</th>
-                  <th>สิ้นสุดสัญญา</th>
+                  <th>เริ่มสัญญา</th><th>สิ้นสุดสัญญา</th>
                   <th class="text-end">โควต้า (%)</th>
                   <th class="text-end">โควต้ารวม (kg)</th>
                   <th width="50" class="text-center">ลบ</th>
                 </tr>
               </thead>
-              <tbody id="quota-history-table-body">
-                <!-- Dynamic -->
-              </tbody>
+              <tbody id="quota-history-table-body"></tbody>
             </table>
           </div>
-
-          <div class="card p-2 bg-light" style="font-size: 11px; border: 1px solid #e2e8f0;">
-            <div class="fw-semibold text-navy mb-2" style="font-size: 11px;">เพิ่มรอบสัญญาโควต้าใหม่</div>
+          <div class="p-2 rounded" style="background:#f8fafc; border:1px solid #e2e8f0; font-size:11px;">
+            <div class="fw-semibold mb-2" style="font-size:11px;">เพิ่มรอบสัญญาโควต้าใหม่</div>
             <div class="row g-2">
               <div class="col-6">
-                <label class="form-label m-0" style="font-size: 10px;">สัญญาเริ่ม</label>
-                <input type="date" id="new-quota-start" class="form-control form-control-xs" style="padding: 2px 5px; font-size: 11px;">
+                <label class="form-label m-0" style="font-size:10px; font-weight:600;">สัญญาเริ่ม</label>
+                <input type="date" id="new-quota-start" class="form-control form-control-sm">
               </div>
               <div class="col-6">
-                <label class="form-label m-0" style="font-size: 10px;">สัญญาหมดอายุ</label>
-                <input type="date" id="new-quota-end" class="form-control form-control-xs" style="padding: 2px 5px; font-size: 11px;">
+                <label class="form-label m-0" style="font-size:10px; font-weight:600;">สัญญาหมดอายุ</label>
+                <input type="date" id="new-quota-end" class="form-control form-control-sm">
               </div>
               <div class="col-6">
-                <label class="form-label m-0" style="font-size: 10px;">โควต้า (%)</label>
-                <input type="number" id="new-quota-pct" class="form-control form-control-xs" min="0" max="100" step="0.1" style="padding: 2px 5px; font-size: 11px;">
+                <label class="form-label m-0" style="font-size:10px; font-weight:600;">โควต้า (%)</label>
+                <input type="number" id="new-quota-pct" class="form-control form-control-sm" min="0" max="100" step="0.1">
               </div>
               <div class="col-6">
-                <label class="form-label m-0" style="font-size: 10px;">โควต้ารวม (kg)</label>
-                <input type="number" id="new-quota-total" class="form-control form-control-xs" min="0" style="padding: 2px 5px; font-size: 11px;">
+                <label class="form-label m-0" style="font-size:10px; font-weight:600;">โควต้ารวม (kg)</label>
+                <input type="number" id="new-quota-total" class="form-control form-control-sm" min="0">
               </div>
-              <div class="col-12 text-end mt-2">
-                <button type="button" class="btn btn-sm btn-success" id="btn-add-quota-period" style="font-size: 11px; padding: 2px 10px;">+ เพิ่มรอบสัญญา</button>
+              <div class="col-12 text-end mt-1">
+                <button type="button" class="btn btn-sm btn-success" id="btn-add-quota-period">+ เพิ่มรอบสัญญา</button>
               </div>
             </div>
           </div>
@@ -370,41 +394,50 @@
 
 <!-- Add/Edit Plant Modal -->
 <div id="plant-modal" class="modal-backdrop" style="display:none">
-  <div class="modal-box" style="max-width:500px">
+  <div class="modal-box" style="max-width:680px; width:95vw;">
     <div class="modal-header">
       <span class="modal-title" id="plant-modal-title">จัดการข้อมูลอีเมลโรงงาน</span>
       <button class="modal-close" onclick="Modal.hide('plant-modal')">✕</button>
     </div>
     <form id="plant-form">
       <input type="hidden" id="plant-id">
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">โรงงาน *</label>
-          <input type="text" id="plt-code" class="form-control form-control-sm" readonly>
+      <div class="modal-body" style="overflow:visible;">
+        <!-- Row: รหัสโรงงาน | ชื่อโรงงาน -->
+        <div class="row g-3 mb-3">
+          <div class="col-3">
+            <label class="form-label">รหัสโรงงาน</label>
+            <input type="text" id="plt-code" class="form-control form-control-sm" readonly>
+          </div>
+          <div class="col-9">
+            <label class="form-label">ชื่อโรงงาน</label>
+            <input type="text" id="plt-name" class="form-control form-control-sm" readonly>
+          </div>
         </div>
-        <div class="mb-3">
-          <label class="form-label">ชื่อโรงงาน</label>
-          <input type="text" id="plt-name" class="form-control form-control-sm" readonly>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">PAN Emails (คั่นด้วย `;` )</label>
-          <input type="text" id="plt-email-pan" class="form-control form-control-sm" placeholder="email1@test.com; email2@test.com">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Planning Emails (คั่นด้วย `;` )</label>
-          <input type="text" id="plt-email-plan" class="form-control form-control-sm" placeholder="email1@test.com; email2@test.com">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Warehouse (RW) Emails (คั่นด้วย `;` )</label>
-          <input type="text" id="plt-email-rw" class="form-control form-control-sm" placeholder="email1@test.com; email2@test.com">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">PD Emails (คั่นด้วย `;` )</label>
-          <input type="text" id="plt-email-pd" class="form-control form-control-sm" placeholder="email1@test.com; email2@test.com">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Manager Emails (คั่นด้วย `;` )</label>
-          <input type="text" id="plt-email-manager" class="form-control form-control-sm" placeholder="email1@test.com; email2@test.com">
+
+        <div class="row g-3">
+          <!-- PAN | Planning -->
+          <div class="col-6">
+            <label class="form-label">PAN Emails <small class="text-muted fw-normal">(คั่นด้วย `;`)</small></label>
+            <input type="text" id="plt-email-pan" class="form-control form-control-sm" placeholder="email1@example.com;">
+          </div>
+          <div class="col-6">
+            <label class="form-label">Planning Emails <small class="text-muted fw-normal">(คั่นด้วย `;`)</small></label>
+            <input type="text" id="plt-email-plan" class="form-control form-control-sm" placeholder="email1@example.com;">
+          </div>
+          <!-- Warehouse | PD -->
+          <div class="col-6">
+            <label class="form-label">Warehouse (RW) Emails <small class="text-muted fw-normal">(คั่นด้วย `;`)</small></label>
+            <input type="text" id="plt-email-rw" class="form-control form-control-sm" placeholder="email1@example.com;">
+          </div>
+          <div class="col-6">
+            <label class="form-label">PD Emails <small class="text-muted fw-normal">(คั่นด้วย `;`)</small></label>
+            <input type="text" id="plt-email-pd" class="form-control form-control-sm" placeholder="email1@example.com;">
+          </div>
+          <!-- Manager — full width -->
+          <div class="col-12">
+            <label class="form-label">Manager Emails <small class="text-muted fw-normal">(คั่นด้วย `;`)</small></label>
+            <input type="text" id="plt-email-manager" class="form-control form-control-sm" placeholder="email1@example.com;">
+          </div>
         </div>
       </div>
       <div class="modal-footer">
@@ -417,69 +450,88 @@
 
 <!-- Add/Edit User Modal -->
 <div id="user-modal" class="modal-backdrop" style="display:none">
-  <div class="modal-box" style="max-width:400px">
+  <div class="modal-box" style="max-width:680px; width:95vw;">
     <div class="modal-header">
       <span class="modal-title" id="user-modal-title">จัดการข้อมูลผู้ใช้งาน</span>
       <button class="modal-close" onclick="Modal.hide('user-modal')">✕</button>
     </div>
     <form id="user-form">
       <input type="hidden" id="user-id">
-      <div class="modal-body">
+      <div class="modal-body" style="overflow:visible;">
+
+        <!-- โรงงาน — full width -->
         <div class="mb-3">
-          <label class="form-label">รหัสพนักงาน *</label>
-          <input type="text" id="usr-username" class="form-control form-control-sm" required placeholder="เช่น 550101">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">ชื่อ-นามสกุล *</label>
-          <input type="text" id="usr-name" class="form-control form-control-sm" required placeholder="เช่น สมชาย ใจดี">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Email ผู้ส่ง</label>
-          <input type="email" id="usr-email" class="form-control form-control-sm" placeholder="เช่น somchai@sermsukplc.com">
-          <small class="text-muted">Email นี้จะใช้เป็น "ผู้ส่ง" ในอีเมลแจ้งแผน Supplier โดยอัตโนมัติ</small>
-        </div>
-        <div class="mb-3 p-2 border rounded bg-light">
-          <div class="fw-semibold text-navy mb-2" style="font-size:12px;"><i class="bi bi-envelope-fill text-primary"></i> ตั้งค่า EmailJS ส่วนตัว (ถ้ามี)</div>
-          <div class="mb-2">
-            <label class="form-label" style="font-size:11px; margin-bottom: 2px;">EmailJS Service ID</label>
-            <input type="text" id="usr-emailjs-service-id" class="form-control form-control-sm" placeholder="เช่น service_xxxxx">
-          </div>
-          <div class="mb-2">
-            <label class="form-label" style="font-size:11px; margin-bottom: 2px;">EmailJS Template ID</label>
-            <input type="text" id="usr-emailjs-template-id" class="form-control form-control-sm" placeholder="เช่น template_xxxxx">
-          </div>
-          <div>
-            <label class="form-label" style="font-size:11px; margin-bottom: 2px;">EmailJS Public Key</label>
-            <input type="text" id="usr-emailjs-public-key" class="form-control form-control-sm" placeholder="เช่น xxxxxxxxxxxxxxxx">
-          </div>
-          <small class="text-muted d-block mt-1" style="font-size:10px; line-height:1.2;">* หากปล่อยว่างไว้ ระบบจะใช้บัญชีส่วนกลางเป็นบัญชีสำรองในการส่งเมล</small>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">บทบาท (Role) *</label>
-          <select id="usr-role" class="form-select form-select-sm" required>
-            <option value="User">User (เข้าใช้รายโรงงาน)</option>
-            <option value="Admin">Admin (เข้าได้ทุกส่วนงาน)</option>
-          </select>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">รหัสผ่านสำหรับเข้าใช้งาน *</label>
-          <input type="text" id="usr-password" class="form-control form-control-sm" required placeholder="เช่น 1234" value="5678">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">แผนก (Department) *</label>
-          <select id="usr-department" class="form-select form-select-sm" required>
-            <option value="production">แผนกผลิต (Production)</option>
-            <option value="warehouse">แผนกคลังวัตถุดิบ (Warehouse)</option>
-            <option value="admin">Admin (เข้าถึงได้ทุกส่วน)</option>
-          </select>
-          <small class="text-muted">กำหนดสิทธิ์การใช้งานตามหน้าที่แผนก</small>
-        </div>
-        <div class="mb-3" id="usr-plant-div">
-          <label class="form-label">โรงงานที่จำกัดสิทธิ์</label>
+          <label class="form-label fw-semibold" style="font-size:13px;">โรงงานที่จำกัดสิทธิ์</label>
           <select id="usr-plant" class="form-select form-select-sm"></select>
           <small class="text-muted">สำหรับสิทธิ์ User เท่านั้น (Admin จะเข้าถึงได้ทุกโรงงานอัตโนมัติ)</small>
         </div>
-      </div>
+
+        <div class="row g-3">
+          <!-- Row 1: แผนก | รหัสพนักงาน -->
+          <div class="col-6">
+            <label class="form-label fw-semibold" style="font-size:13px;">แผนก (Department) *</label>
+            <select id="usr-department" class="form-select form-select-sm" required>
+              <option value="production">แผนกผลิต (Production)</option>
+              <option value="warehouse">แผนกคลังวัตถุดิบ (Warehouse)</option>
+              <option value="admin">Admin (เข้าถึงได้ทุกส่วน)</option>
+            </select>
+            <small class="text-muted">กำหนดสิทธิ์การใช้งานตามหน้าที่แผนก</small>
+          </div>
+          <div class="col-6">
+            <label class="form-label fw-semibold" style="font-size:13px;">รหัสพนักงาน *</label>
+            <input type="text" id="usr-username" class="form-control form-control-sm" required placeholder="เช่น 550101">
+          </div>
+
+          <!-- Row 2: ชื่อ-นามสกุล | Email -->
+          <div class="col-6">
+            <label class="form-label fw-semibold" style="font-size:13px;">ชื่อ-นามสกุล *</label>
+            <input type="text" id="usr-name" class="form-control form-control-sm" required placeholder="เช่น สมชาย ใจดี">
+          </div>
+          <div class="col-6">
+            <label class="form-label fw-semibold" style="font-size:13px;">Email ผู้ส่ง</label>
+            <input type="email" id="usr-email" class="form-control form-control-sm" placeholder="เช่น somchai@sermsukplc.com">
+            <small class="text-muted">ใช้เป็น "ผู้ส่ง" ในอีเมลแจ้งแผน Supplier</small>
+          </div>
+
+          <!-- Row 3: รหัสผ่าน | บทบาท -->
+          <div class="col-6">
+            <label class="form-label fw-semibold" style="font-size:13px;">รหัสผ่าน *</label>
+            <input type="text" id="usr-password" class="form-control form-control-sm" required placeholder="เช่น 1234" value="5678">
+          </div>
+          <div class="col-6">
+            <label class="form-label fw-semibold" style="font-size:13px;">บทบาท (Role) *</label>
+            <select id="usr-role" class="form-select form-select-sm" required>
+              <option value="User">User (เข้าใช้รายโรงงาน)</option>
+              <option value="Admin">Admin (เข้าได้ทุกส่วนงาน)</option>
+            </select>
+          </div>
+
+          <!-- EmailJS — full width, Warehouse only -->
+          <div class="col-12" id="usr-emailjs-section" style="display:none;">
+            <div class="p-3 rounded" style="background:rgba(99,102,241,0.06); border:1px solid rgba(99,102,241,0.2);">
+              <div class="fw-semibold mb-3" style="font-size:12px; color:#4f46e5;">
+                <i class="bi bi-envelope-fill"></i> ตั้งค่า EmailJS ส่วนตัว (ถ้ามี)
+              </div>
+              <div class="row g-3">
+                <div class="col-4">
+                  <label class="form-label" style="font-size:11px; font-weight:600; margin-bottom:4px;">EmailJS Service ID</label>
+                  <input type="text" id="usr-emailjs-service-id" class="form-control form-control-sm" placeholder="service_xxxxx">
+                </div>
+                <div class="col-4">
+                  <label class="form-label" style="font-size:11px; font-weight:600; margin-bottom:4px;">EmailJS Template ID</label>
+                  <input type="text" id="usr-emailjs-template-id" class="form-control form-control-sm" placeholder="template_xxxxx">
+                </div>
+                <div class="col-4">
+                  <label class="form-label" style="font-size:11px; font-weight:600; margin-bottom:4px;">EmailJS Public Key</label>
+                  <input type="text" id="usr-emailjs-public-key" class="form-control form-control-sm" placeholder="xxxxxxxxxxxxxxxx">
+                </div>
+              </div>
+              <small class="text-muted d-block mt-2" style="font-size:10px;">* หากปล่อยว่างไว้ ระบบจะใช้บัญชีส่วนกลางเป็นบัญชีสำรองในการส่งเมล</small>
+            </div>
+          </div>
+        </div><!-- /row -->
+
+      </div><!-- /modal-body -->
       <div class="modal-footer">
         <button type="button" class="btn btn-ghost" onclick="Modal.hide('user-modal')">ยกเลิก</button>
         <button type="submit" class="btn btn-primary">บันทึกข้อมูล</button>
@@ -491,6 +543,7 @@
 <div id="toast-container"></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="js/supabase.js"></script>
 <script src="js/app.js?v=20260717f"></script>
 <script src="js/settings.js"></script>
