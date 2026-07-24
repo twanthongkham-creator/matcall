@@ -438,6 +438,22 @@
           <input type="email" id="usr-email" class="form-control form-control-sm" placeholder="เช่น somchai@sermsukplc.com">
           <small class="text-muted">Email นี้จะใช้เป็น "ผู้ส่ง" ในอีเมลแจ้งแผน Supplier โดยอัตโนมัติ</small>
         </div>
+        <div class="mb-3 p-2 border rounded bg-light">
+          <div class="fw-semibold text-navy mb-2" style="font-size:12px;"><i class="bi bi-envelope-fill text-primary"></i> ตั้งค่า EmailJS ส่วนตัว (ถ้ามี)</div>
+          <div class="mb-2">
+            <label class="form-label" style="font-size:11px; margin-bottom: 2px;">EmailJS Service ID</label>
+            <input type="text" id="usr-emailjs-service-id" class="form-control form-control-sm" placeholder="เช่น service_xxxxx">
+          </div>
+          <div class="mb-2">
+            <label class="form-label" style="font-size:11px; margin-bottom: 2px;">EmailJS Template ID</label>
+            <input type="text" id="usr-emailjs-template-id" class="form-control form-control-sm" placeholder="เช่น template_xxxxx">
+          </div>
+          <div>
+            <label class="form-label" style="font-size:11px; margin-bottom: 2px;">EmailJS Public Key</label>
+            <input type="text" id="usr-emailjs-public-key" class="form-control form-control-sm" placeholder="เช่น xxxxxxxxxxxxxxxx">
+          </div>
+          <small class="text-muted d-block mt-1" style="font-size:10px; line-height:1.2;">* หากปล่อยว่างไว้ ระบบจะใช้บัญชีส่วนกลางเป็นบัญชีสำรองในการส่งเมล</small>
+        </div>
         <div class="mb-3">
           <label class="form-label">บทบาท (Role) *</label>
           <select id="usr-role" class="form-select form-select-sm" required>

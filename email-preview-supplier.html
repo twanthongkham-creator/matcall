@@ -155,13 +155,12 @@
 <script src="js/app.js?v=20260717f"></script>
 <script>
 // -------------------------------------------------------------
-// EMAIL SENDING: EmailJS, sending through the mailbox connected to this
-// EmailJS service — currently Theerayut.Wanthongkham@sermsukplc.com.
+// EMAIL SENDING: Dynamic EmailJS config (per user with global fallback)
 // -------------------------------------------------------------
-const EMAILJS_SERVICE_ID  = 'service_ofpsdk6';
-const EMAILJS_TEMPLATE_ID = 'template_rjnzopj';
-const EMAILJS_PUBLIC_KEY  = 'gYNAX5IlLeqDebuDi';
-emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+let emailjsServiceId  = 'service_ofpsdk6';
+let emailjsTemplateId = 'template_rjnzopj';
+let emailjsPublicKey  = 'gYNAX5IlLeqDebuDi';
+
 
 // Parses the bracketed change-tag prefix history.js writes into `remark`
 // when a call-off item is rescheduled/cancelled (see js/history.js for the
@@ -182,6 +181,29 @@ try {
   const senderEmail = sessionStorage.getItem('email_sender_email') || '';
   const emailType   = sessionStorage.getItem('email_type') || 'supplier';
   const isChangeMail = emailType === 'change';
+
+  // ── Load personal EmailJS config if available ──
+  const currentUser = Auth.getUser();
+  if (currentUser) {
+    try {
+      const { data: dbUser } = await _supabase.from('app_users')
+        .select('emailjs_service_id, emailjs_template_id, emailjs_public_key')
+        .eq('id', currentUser.id)
+        .single();
+      
+      if (dbUser && dbUser.emailjs_service_id && dbUser.emailjs_template_id && dbUser.emailjs_public_key) {
+        emailjsServiceId  = dbUser.emailjs_service_id;
+        emailjsTemplateId = dbUser.emailjs_template_id;
+        emailjsPublicKey  = dbUser.emailjs_public_key;
+        console.log("Using personal EmailJS config for sender:", currentUser.name);
+      }
+    } catch(err) {
+      console.warn("Failed loading user EmailJS config, using fallback:", err);
+    }
+  }
+  
+  // Initialize EmailJS dynamically
+  emailjs.init({ publicKey: emailjsPublicKey });
 
   if (!items.length) {
     Toast.warning('ไม่พบข้อมูลอีเมล กลับไปเลือกรายการใหม่');
@@ -343,7 +365,7 @@ try {
             throw new Error('ไม่พบอีเมลผู้รับ (To) กรุณาตรวจสอบข้อมูล Supplier');
           }
 
-          await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+          await emailjs.send(emailjsServiceId, emailjsTemplateId, {
             to_email: toVal,
             cc_email: ccVal,
             subject: subjectVal,

@@ -25,14 +25,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error("Failed loading plants:", e);
   }
 
+  // Populate Supplier Filter based on active plant
+  await updateSupplierFilter();
+
   // Bind UI Events
-  document.getElementById('btn-sap-import')?.addEventListener('click', importFromSap);
   document.getElementById('file-po-import')?.addEventListener('change', handleFileUpload);
 
   // Filter Event Listeners
   document.getElementById('inp-po-search')?.addEventListener('input', renderPOTable);
-  document.getElementById('sel-po-plant')?.addEventListener('change', renderPOTable);
+  document.getElementById('sel-po-plant')?.addEventListener('change', async function() {
+    await updateSupplierFilter();
+    renderPOTable();
+  });
   document.getElementById('sel-po-material')?.addEventListener('change', renderPOTable);
+  document.getElementById('sel-po-supplier')?.addEventListener('change', renderPOTable);
   document.getElementById('sel-po-status')?.addEventListener('change', renderPOTable);
   document.getElementById('btn-po-reset-filter')?.addEventListener('click', resetFilters);
 
@@ -52,8 +58,37 @@ async function loadPOs() {
   try {
     poRows = await API.getPOs();
     renderPOTable();
+    updateLastUploadTimeDisplay();
   } catch (e) {
     Toast.error("โหลดข้อมูล PO ล้มเหลว: " + e.message);
+  }
+}
+
+function updateLastUploadTimeDisplay() {
+  const el = document.getElementById('po-last-update-text');
+  if (!el) return;
+  if (!poRows || poRows.length === 0) {
+    el.textContent = 'ไม่มีข้อมูลในระบบ';
+    return;
+  }
+  let latest = null;
+  for (const r of poRows) {
+    if (r.created_at) {
+      const d = new Date(r.created_at);
+      if (!latest || d > latest) {
+        latest = d;
+      }
+    }
+  }
+  if (latest) {
+    const day = String(latest.getDate()).padStart(2, '0');
+    const month = String(latest.getMonth() + 1).padStart(2, '0');
+    const year = latest.getFullYear();
+    const hours = String(latest.getHours()).padStart(2, '0');
+    const minutes = String(latest.getMinutes()).padStart(2, '0');
+    el.textContent = `${day}/${month}/${year} ${hours}:${minutes} น.`;
+  } else {
+    el.textContent = 'ไม่ระบุ';
   }
 }
 
@@ -65,6 +100,7 @@ function renderPOTable() {
   const searchVal = document.getElementById('inp-po-search').value.trim().toLowerCase();
   const plantVal = document.getElementById('sel-po-plant').value;
   const materialVal = document.getElementById('sel-po-material').value;
+  const supplierVal = document.getElementById('sel-po-supplier')?.value;
   const statusVal = document.getElementById('sel-po-status').value;
 
   // Apply filters
@@ -77,6 +113,9 @@ function renderPOTable() {
   }
   if (materialVal && materialVal !== 'all') {
     filtered = filtered.filter(p => p.material_name === materialVal);
+  }
+  if (supplierVal && supplierVal !== 'all') {
+    filtered = filtered.filter(p => p.supplier_name === supplierVal);
   }
   if (statusVal && statusVal !== 'all') {
     if (statusVal === 'active') {
@@ -100,9 +139,9 @@ function renderPOTable() {
   }
 
   tbody.innerHTML = filtered.map((p, idx) => {
-    const statusText = p.is_completed ? 'เสร็จสิ้น (Closed)' : 'ยังไม่ครบ (Active)';
+    const statusText = p.is_completed ? 'เสร็จสิ้น' : 'ยังไม่ครบ';
     const statusClass = p.is_completed ? 'po-closed' : 'po-active';
-    const statusIcon = p.is_completed ? '<i class="bi bi-check-circle-fill"></i>' : '<i class="bi bi-arrow-repeat"></i>';
+    const statusIcon = p.is_completed ? '<i class="bi bi-check-circle-fill"></i>' : '<i class="bi bi-circle-fill" style="font-size:6px; vertical-align:middle;"></i>';
 
     const rowOpacity = (p.is_active === false) ? '0.5' : '1';
     
@@ -153,6 +192,7 @@ function resetFilters() {
   document.getElementById('inp-po-search').value = '';
   document.getElementById('sel-po-plant').value = 'all';
   document.getElementById('sel-po-material').value = 'all';
+  document.getElementById('sel-po-supplier').value = 'all';
   document.getElementById('sel-po-status').value = 'active';
   renderPOTable();
 }
@@ -330,4 +370,29 @@ function mapVendorToSupplier(vendorName) {
     return 'ดับเบิ้ลยูจีซี';
   }
   return vendorName; // fallback
+}
+
+async function updateSupplierFilter() {
+  const plantVal = document.getElementById('sel-po-plant')?.value;
+  const selSup = document.getElementById('sel-po-supplier');
+  if (!selSup) return;
+
+  const oldVal = selSup.value;
+  selSup.innerHTML = '<option value="all">กำลังโหลด...</option>';
+
+  try {
+    const plantFilter = plantVal && plantVal !== 'all' ? plantVal : null;
+    const suppliers = await API.getSuppliers(plantFilter);
+    const uniqueSups = [...new Set(suppliers.map(s => s.supplier_name))].sort();
+
+    populateSelect(selSup, uniqueSups.map(name => ({ code: name, name: name })), 'code', 'name', 'ทั้งหมด', 'all');
+    if (uniqueSups.includes(oldVal)) {
+      selSup.value = oldVal;
+    } else {
+      selSup.value = 'all';
+    }
+  } catch (e) {
+    console.error("Failed loading suppliers:", e);
+    selSup.innerHTML = '<option value="all">ทั้งหมด</option>';
+  }
 }

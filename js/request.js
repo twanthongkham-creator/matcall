@@ -318,10 +318,34 @@ function bindFormEvents() {
       return;
     }
     try {
-      let suppliers = await API.getSupplierByMaterial(plant, MatMap.toDB(material));
-      if (suppliers.length === 0) {
-        suppliers = await API.getSupplierByMaterial('PT', MatMap.toDB(material));
+      let suppliers = [];
+      const poMaterialName = material;
+      const pos = await API.getPOs(plant, poMaterialName);
+      const activePos = pos.filter(p => !p.is_completed && p.is_active !== false);
+
+      if (activePos.length > 0) {
+        const uniqueNames = [...new Set(activePos.map(p => p.supplier_name))].filter(Boolean);
+        const dbSups = await API.getSupplierByMaterial(plant, MatMap.toDB(material));
+        const fallbackSups = dbSups.length > 0 ? dbSups : await API.getSupplierByMaterial('PT', MatMap.toDB(material));
+
+        uniqueNames.forEach(name => {
+          const matched = fallbackSups.find(fs => SupplierMap.toSAP(fs.supplier_name) === SupplierMap.toSAP(name));
+          suppliers.push({
+            supplier_name: name,
+            remaining_quota: matched ? matched.remaining_quota : null,
+            supplier_email: matched ? matched.supplier_email : null
+          });
+        });
       }
+
+      if (suppliers.length === 0) {
+        let dbSups = await API.getSupplierByMaterial(plant, MatMap.toDB(material));
+        if (dbSups.length === 0) {
+          dbSups = await API.getSupplierByMaterial('PT', MatMap.toDB(material));
+        }
+        suppliers = dbSups;
+      }
+
       selSup.innerHTML = '<option value="">เลือก Supplier...</option>';
       suppliers.forEach(s => {
         const sapSupplier = SupplierMap.toSAP(s.supplier_name);

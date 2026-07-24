@@ -493,6 +493,88 @@ const API = {
       }
     }
   },
+
+  async refundPoPendingQty(poNumber, materialName, qtyRefund) {
+    let remainingToRefund = parseFloat(qtyRefund) || 0;
+    if (remainingToRefund <= 0) return;
+
+    try {
+      const { data, error } = await _supabase.from('po_data')
+        .select('*')
+        .eq('po_number', poNumber)
+        .eq('material_name', materialName)
+        .order('po_item', { ascending: true });
+        
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        for (const poItem of data) {
+          if (remainingToRefund <= 0) break;
+          const currentPending = parseFloat(poItem.qty_pending) || 0;
+          const orderQty = parseFloat(poItem.order_qty) || 0;
+          const maxRefund = Math.max(0, orderQty - currentPending);
+          
+          if (maxRefund > 0) {
+            const refund = Math.min(maxRefund, remainingToRefund);
+            const newPending = currentPending + refund;
+            const isCompleted = newPending <= 0;
+            
+            await _supabase.from('po_data')
+              .update({ qty_pending: newPending, is_completed: isCompleted, updated_at: new Date().toISOString() })
+              .eq('id', poItem.id);
+              
+            remainingToRefund -= refund;
+          }
+        }
+        
+        if (remainingToRefund > 0) {
+          const poItem = data[0];
+          const currentPending = parseFloat(poItem.qty_pending) || 0;
+          const newPending = currentPending + remainingToRefund;
+          await _supabase.from('po_data')
+            .update({ qty_pending: newPending, is_completed: false, updated_at: new Date().toISOString() })
+            .eq('id', poItem.id);
+        }
+      }
+    } catch (e) {
+      console.warn("Table po_data error during PO qty refund update", e);
+    }
+    
+    // Local storage fallback
+    try {
+      let localPOs = JSON.parse(localStorage.getItem('fallback_pos') || '[]');
+      let localRemaining = parseFloat(qtyRefund) || 0;
+      
+      localPOs.sort((a, b) => {
+        if (a.po_number !== b.po_number) return a.po_number.localeCompare(b.po_number);
+        return a.po_item.localeCompare(b.po_item);
+      });
+      
+      for (let i = 0; i < localPOs.length; i++) {
+        if (localRemaining <= 0) break;
+        const p = localPOs[i];
+        if (p.po_number === poNumber && p.material_name === materialName) {
+          const currentPending = parseFloat(p.qty_pending) || 0;
+          const orderQty = parseFloat(p.order_qty) || 0;
+          const maxRefund = Math.max(0, orderQty - currentPending);
+          if (maxRefund > 0) {
+            const refund = Math.min(maxRefund, localRemaining);
+            p.qty_pending = currentPending + refund;
+            p.is_completed = p.qty_pending <= 0;
+            localRemaining -= refund;
+          }
+        }
+      }
+      if (localRemaining > 0 && localPOs.length > 0) {
+        const p = localPOs.find(x => x.po_number === poNumber && x.material_name === materialName);
+        if (p) {
+          p.qty_pending = (parseFloat(p.qty_pending) || 0) + localRemaining;
+          p.is_completed = false;
+        }
+      }
+      localStorage.setItem('fallback_pos', JSON.stringify(localPOs));
+    } catch (err) {}
+  },
 };
 
 /* ── Fiscal Year helper ─────────────────────────────────────── */

@@ -15,7 +15,7 @@ const DisplayMap = {
     return dbName;
   },
   supplier(dbName) {
-    if (dbName === 'บจก.เจ้าคุณเกษตรพืชผล') return 'เจ้าคุณเกษตรพืชผล';
+    if (dbName === 'เจ้าคุณเกษตรพืชผล' || dbName === 'บจก.เจ้าคุณเกษตรพืชผล') return 'เจ้าคุณเกษตรพืชผล';
     if (dbName === 'WGC' || dbName === 'ดับเบิ้ลยูจีซี') return 'ดับเบิ้ลยูจีซี';
     if (dbName === 'ลินเด้ (ประเทศไทย)') return 'ลินเด้ (ประเทศไทย)';
     if (dbName === 'พี.เอส.ซี.สตาร์ช โปรดักส์') return 'พี.เอส.ซี.สตาร์ช โปรดักส์';
@@ -495,6 +495,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       usrname.disabled = false; // allow editing username
       document.getElementById('usr-name').value = usr.name;
       document.getElementById('usr-email').value = usr.email || '';
+      document.getElementById('usr-emailjs-service-id').value = usr.emailjs_service_id || '';
+      document.getElementById('usr-emailjs-template-id').value = usr.emailjs_template_id || '';
+      document.getElementById('usr-emailjs-public-key').value = usr.emailjs_public_key || '';
       document.getElementById('usr-role').value = usr.role;
       document.getElementById('usr-department').value = usr.department || (usr.role === 'Admin' ? 'admin' : 'production');
       document.getElementById('usr-password').value = usr.password || (usr.role === 'Admin' ? '1234' : '5678');
@@ -505,6 +508,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('usr-password').value = '5678';
       document.getElementById('usr-department').value = 'production';
       document.getElementById('usr-email').value = '';
+      document.getElementById('usr-emailjs-service-id').value = '';
+      document.getElementById('usr-emailjs-template-id').value = '';
+      document.getElementById('usr-emailjs-public-key').value = '';
       usrname.disabled = false;
     }
 
@@ -545,6 +551,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         username: document.getElementById('usr-username').value.trim().toLowerCase(),
         name: document.getElementById('usr-name').value.trim(),
         email: document.getElementById('usr-email').value.trim() || null,
+        emailjs_service_id: document.getElementById('usr-emailjs-service-id').value.trim() || null,
+        emailjs_template_id: document.getElementById('usr-emailjs-template-id').value.trim() || null,
+        emailjs_public_key: document.getElementById('usr-emailjs-public-key').value.trim() || null,
         role: document.getElementById('usr-role').value,
         department: document.getElementById('usr-department').value,
         plant_code: currentUser.plant_code ? currentUser.plant_code : (document.getElementById('usr-role').value === 'Admin' ? null : document.getElementById('usr-plant').value || null),

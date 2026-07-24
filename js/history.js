@@ -242,6 +242,10 @@ async function renderPoBulkAssignBar() {
   const plantVal = document.getElementById('sel-hist-plant')?.value;
   const plant = plantVal && plantVal !== 'all' ? plantVal : null;
 
+  const supplierVal = document.getElementById('sel-hist-supplier')?.value;
+  const supplier = supplierVal && supplierVal !== 'all' ? supplierVal : null;
+  const poSupplier = supplier ? SupplierMap.toSAP(supplier) : null;
+
   container.style.display = 'block';
   container.innerHTML = `
     <div class="alert alert-info" style="margin-bottom:0;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -258,10 +262,7 @@ async function renderPoBulkAssignBar() {
   const sel = document.getElementById('sel-po-bulk-assign');
   try {
     const poMaterialName = MatMap.toSAP(activeMaterial);
-    // No supplier filter — same reasoning as the per-row dropdown: po_data's
-    // supplier_name (raw SAP vendor text) doesn't reliably match calloff_plan's
-    // normalized Thai supplier name.
-    const pos = await API.getPOs(plant, poMaterialName, null);
+    const pos = await API.getPOs(plant, poMaterialName, poSupplier);
     // Only offer POs SAP hasn't marked "Deliv. Compl." (X) — X means closed.
     const open = pos.filter(p => !p.is_completed && p.is_active !== false);
     const poMap = {};
@@ -404,7 +405,17 @@ function renderHistoryTable(rows) {
 function renderPoCell(r, isVoided) {
   if (isVoided) return '-';
   if (!PO_TRACKED_MATERIALS.includes(r.material_name)) return '-';
-  if (r.po_number) return `<code style="font-size:12px">${r.po_number}</code>`;
+  if (r.po_number) {
+    if (!canAssignPo) return `<code style="font-size:12px">${r.po_number}</code>`;
+    return `
+      <div style="display:flex;gap:6px;align-items:center;">
+        <code style="font-size:12px; font-weight:700; color:var(--teal)">${r.po_number}</code>
+        <button class="btn btn-outline-secondary btn-sm" onclick="clearPlanPo(${r.id})" 
+                title="แก้ไข/ยกเลิก PO" style="padding: 0px 4px;font-size: 10px;height: 20px;line-height: 1;">
+          <i class="bi bi-pencil"></i> แก้ไข
+        </button>
+      </div>`;
+  }
   if (!canAssignPo) return '<span class="text-muted" style="font-size:12px">ยังไม่ระบุ PO</span>';
 
   return `
@@ -435,12 +446,8 @@ async function populateAssignablePoSelects(rows) {
     if (!sel) continue;
     try {
       const poMaterialName = MatMap.toSAP(r.material_name);
-      // Note: intentionally not filtering by supplier here — po_data's
-      // supplier_name comes from the raw SAP vendor text (e.g. "Linde
-      // (Thailand) PLC.") while calloff_plan uses the normalized Thai name
-      // (e.g. "ลินเด้ (ประเทศไทย)"), so an exact-match filter can silently
-      // return zero POs. Plant + material is specific enough in practice.
-      const pos = await API.getPOs(r.plant, poMaterialName, null);
+      const poSupplier = r.supplier_name ? SupplierMap.toSAP(r.supplier_name) : null;
+      const pos = await API.getPOs(r.plant, poMaterialName, poSupplier);
 
       // Show every PO number for this plant+material that SAP hasn't marked
       // "Deliv. Compl." (X) — X means that PO line is formally closed, so it
@@ -507,6 +514,34 @@ async function assignPoToRow(id) {
     }
   }
 }
+
+/* ── Clear PO Assignment ────────────────────────────────────── */
+window.clearPlanPo = async function(id) {
+  const row = histRows.find(r => r.id === id);
+  if (!row || !row.po_number) return;
+
+  Modal.confirm(
+    'ยืนยันการแก้ไข PO',
+    `ต้องการยกเลิกการผูก PO <b>${row.po_number}</b> สำหรับรายการนี้ใช่หรือไม่?<br><span class="text-danger" style="font-size:12px">* ยอดที่ถูกหักไปจะถูกคืนกลับเข้าโควตา PO เดิมทันที</span>`,
+    async () => {
+      try {
+        const poMaterialName = MatMap.toSAP(row.material_name);
+        const refundKg = toPoDeductionKg(row.material_name, row.quantity);
+        
+        // 1. Refund the quantity to po_data
+        await API.refundPoPendingQty(row.po_number, poMaterialName, refundKg);
+        
+        // 2. Clear po_number on calloff_plan
+        await API.updateCalloffPlan(id, { po_number: null });
+        
+        Toast.success('ยกเลิกการผูก PO เรียบร้อย');
+        await loadHistoryList();
+      } catch (e) {
+        Toast.error('แก้ไข PO ไม่สำเร็จ: ' + e.message);
+      }
+    }
+  );
+};
 
 /* ── Selection ──────────────────────────────────────────────── */
 window.toggleSelect = function (id, checked) {
