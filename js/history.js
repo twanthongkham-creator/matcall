@@ -187,7 +187,8 @@ async function renderPoSummary() {
 
   try {
     const poMaterialName = MatMap.toSAP(activeMaterial);
-    const pos = await API.getPOs(plant, poMaterialName, supplier);
+    const poSupplier = supplier ? SupplierMap.toSAP(supplier) : null;
+    const pos = await API.getPOs(plant, poMaterialName, poSupplier);
     const active = pos.filter(p => !p.is_completed && p.is_active !== false && parseFloat(p.qty_pending) > 0);
 
     const poMap = {};
