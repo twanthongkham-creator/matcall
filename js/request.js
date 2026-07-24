@@ -446,6 +446,7 @@ function bindFormEvents() {
   document.getElementById('sel-filter-plant')?.addEventListener('change', loadRequestList);
   document.getElementById('sel-filter-material')?.addEventListener('change', loadRequestList);
   document.getElementById('sel-filter-status')?.addEventListener('change', loadRequestList);
+  document.getElementById('sel-filter-requester')?.addEventListener('change', loadRequestList);
   document.getElementById('inp-date-from')?.addEventListener('change', loadRequestList);
   document.getElementById('inp-date-to')?.addEventListener('change', loadRequestList);
 
@@ -787,12 +788,13 @@ async function saveBasket() {
 async function loadRequestList() {
   showSpinner('req-table-body', 'กำลังโหลดรายการ...');
 
-  const plant    = document.getElementById('sel-filter-plant')?.value;
-  const status   = document.getElementById('sel-filter-status')?.value;
-  const material = document.getElementById('sel-filter-material')?.value;
-  const dateFrom = document.getElementById('inp-date-from')?.value;
-  const dateTo   = document.getElementById('inp-date-to')?.value;
-  const search   = document.getElementById('inp-search')?.value?.trim().toLowerCase();
+  const plant     = document.getElementById('sel-filter-plant')?.value;
+  const status    = document.getElementById('sel-filter-status')?.value;
+  const material  = document.getElementById('sel-filter-material')?.value;
+  const dateFrom  = document.getElementById('inp-date-from')?.value;
+  const dateTo    = document.getElementById('inp-date-to')?.value;
+  const requester = document.getElementById('sel-filter-requester')?.value;
+  const search    = document.getElementById('inp-search')?.value?.trim().toLowerCase();
 
   try {
     let data = await API.getCalloffPlans({
@@ -802,6 +804,30 @@ async function loadRequestList() {
       dateFrom:     dateFrom || null,
       dateTo:       dateTo   || null,
     });
+
+    // Dynamically populate requester list in the dropdown
+    const reqSel = document.getElementById('sel-filter-requester');
+    if (reqSel) {
+      const activeValue = reqSel.value;
+      const uniqueRequesters = [...new Set(data.map(r => r.requester_name).filter(Boolean))].sort();
+      
+      let html = `<option value="">ทั้งหมด</option>
+                  <option value="MYSELF" ${activeValue === 'MYSELF' ? 'selected' : ''}>เฉพาะของฉัน</option>`;
+      uniqueRequesters.forEach(name => {
+        if (name !== 'เฉพาะของฉัน' && name !== 'MYSELF') {
+          html += `<option value="${name}" ${activeValue === name ? 'selected' : ''}>${name}</option>`;
+        }
+      });
+      reqSel.innerHTML = html;
+    }
+
+    // Apply filters
+    const currentUser = Auth.getUser();
+    if (requester === 'MYSELF' && currentUser) {
+      data = data.filter(r => r.requester_name === currentUser.name);
+    } else if (requester && requester !== 'MYSELF') {
+      data = data.filter(r => r.requester_name === requester);
+    }
 
     if (search) {
       data = data.filter(r =>
@@ -998,6 +1024,9 @@ function resetFilters() {
   document.getElementById('sel-filter-plant').value    = '';
   document.getElementById('sel-filter-material').value = '';
   document.getElementById('sel-filter-status').value   = '';
+  if (document.getElementById('sel-filter-requester')) {
+    document.getElementById('sel-filter-requester').value = 'MYSELF';
+  }
   document.getElementById('inp-date-from').value       = '';
   document.getElementById('inp-date-to').value         = '';
   document.getElementById('inp-search').value          = '';

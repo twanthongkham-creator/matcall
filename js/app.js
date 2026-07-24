@@ -12,6 +12,8 @@ const MatMap = {
     if (sapName === '120001687 น้ำตาลเหลว' || sapName === 'น้ำตาลเหลว') return 'Liquid Sugar';
     if (sapName === '120001688 High Fructose Syrup 42%' || sapName === 'High Fructose Syrup 42%') return 'HFS42%';
     if (sapName === '120001474 Bioligo (IMO)' || sapName === 'Bioligo (IMO)') return 'Bioligo IMO';
+    if (sapName === '150003906 Sodium Hydroxide 32%') return 'NaOH';
+    if (sapName === '160000206 LPG Gas') return 'LPG';
     return sapName;
   },
   toSAP(dbName) {
@@ -19,6 +21,8 @@ const MatMap = {
     if (dbName === 'Liquid Sugar' || dbName === 'Liquid Sugar ') return '120001687 น้ำตาลเหลว';
     if (dbName === 'HFS42%') return '120001688 High Fructose Syrup 42%';
     if (dbName === 'Bioligo IMO') return '120001474 Bioligo (IMO)';
+    if (dbName === 'NaOH') return '150003906 Sodium Hydroxide 32%';
+    if (dbName === 'LPG') return '160000206 LPG Gas';
     return dbName;
   }
 };

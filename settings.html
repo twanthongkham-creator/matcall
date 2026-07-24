@@ -201,9 +201,20 @@
         <!-- Tab 2: Supplier Emails -->
         <div class="tab-pane fade" id="supplier-panel" role="tabpanel">
           <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
               <span><i class="bi bi-truck"></i> อีเมลผู้รับ Supplier ภายนอก และ Quota</span>
-              <button class="btn btn-primary btn-sm" id="btn-add-supplier"><i class="bi bi-plus-circle"></i> เพิ่ม Supplier</button>
+              <div class="d-flex align-items-center gap-2">
+                <select id="filter-supplier-plant" class="form-select form-select-sm" style="max-width: 180px;">
+                  <option value="">ทุกโรงงาน (All Plants)</option>
+                  <option value="PT">PT (ปทุมธานี)</option>
+                  <option value="KR">KR (นครราชสีมา)</option>
+                  <option value="NS">NS (สุราษฎร์ธานี)</option>
+                  <option value="SR">SR (ชลบุรี)</option>
+                  <option value="CH">CH (เชียงใหม่)</option>
+                  <option value="NP">NP (นครปฐม)</option>
+                </select>
+                <button class="btn btn-primary btn-sm text-nowrap" id="btn-add-supplier"><i class="bi bi-plus-circle"></i> เพิ่ม Supplier</button>
+              </div>
             </div>
             <div class="card-body" style="padding:0">
               <div class="table-wrap">
@@ -305,6 +316,8 @@
               <option value="HFS42%">HFS42%</option>
               <option value="Liquid Sugar">Liquid Sugar</option>
               <option value="Bioligo IMO">Bioligo (IMO)</option>
+              <option value="NaOH">Sodium Hydroxide 32%</option>
+              <option value="LPG">LPG Gas</option>
             </select>
           </div>
         </div>

@@ -286,7 +286,9 @@ try {
     <th style="font-family:'Browallia New',sans-serif;padding:4px;border:1px solid #fff;background:#1d3a70;color:#fff;font-size:17px">Quantity</th>`;
 
   const firstDate = new Date(items[0].delivery_date);
+  const monthOnlyTH = firstDate.toLocaleDateString('th-TH', { month: 'long' });
   const monthTH   = firstDate.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+  const isBioligo = material.includes('Bioligo') || material.includes('120001474');
 
   const emailHTML = `
   <table width="650" style="width:100%;max-width:650px;font-family:'Browallia New',sans-serif;border:1px solid #eef2f6;border-radius:8px;background:#fff">
@@ -295,7 +297,9 @@ try {
       <p style="font-family:'Browallia New',sans-serif;font-size:17px">เรียน ทีมงาน <b>${supplierName}</b><br><br>
         ${isChangeMail
           ? `ขอแจ้งการเปลี่ยนแปลงแผนการเรียกเข้า <b style="color:#0c8a7e">${material}</b> สำหรับโรงงาน <b>${plantInfo?.plant_name ?? plantCode}</b> ตามรายละเอียดด้านล่างครับ`
-          : `ขอแจ้งแผนการเรียกเข้า <b style="color:#0c8a7e">${material}</b> สำหรับโรงงาน <b>${plantInfo?.plant_name ?? plantCode}</b> ในสัปดาห์หน้าครับ`}
+          : (isBioligo
+            ? `ขอแจ้งแผนการเรียกเข้า <b style="color:#0c8a7e">${material}</b> สำหรับโรงงาน <b>${plantInfo?.plant_name ?? plantCode}</b> ประจำเดือน <b>${monthTH}</b> ครับ`
+            : `ขอแจ้งแผนการเรียกเข้า <b style="color:#0c8a7e">${material}</b> สำหรับโรงงาน <b>${plantInfo?.plant_name ?? plantCode}</b> ในสัปดาห์หน้าครับ`)}
       </p>
       ${poLabel ? `<p style="font-family:'Browallia New',sans-serif;font-size:17px">โดยขอให้อ้างอิงการจัดส่งตาม PO หมายเลข: <b style="color:#d32f2f">${poLabel}</b></p>` : ''}
       <table width="100%" style="font-family:'Browallia New',sans-serif;border-collapse:collapse;text-align:center">
@@ -315,10 +319,11 @@ try {
     </td></tr>
   </table>`;
 
-  // WK number
+  // WK number or Month for subject line
   const wk = Fmt.weekNum(items[0].delivery_date);
   const subjectPrefix = isChangeMail ? '[แก้ไขแผน] ' : '';
-  const subject = `${subjectPrefix}แจ้งแผนการเรียกเข้า ${material} โรงงาน ${plantInfo?.plant_name ?? plantCode} (WK${wk})${poLabel ? ` [PO: ${poLabel}]` : ''}`;
+  const timeLabel = isBioligo ? `ประจำเดือน${monthOnlyTH}` : `(WK${wk})`;
+  const subject = `${subjectPrefix}แจ้งแผนการเรียกเข้า ${material} โรงงาน ${plantInfo?.plant_name ?? plantCode} ${timeLabel}${poLabel ? ` [PO: ${poLabel}]` : ''}`;
 
   const ccArr = [supplierEmailPan, plantInfo?.email_plan, plantInfo?.email_rw,
                  plantInfo?.email_pd, plantInfo?.email_manager]

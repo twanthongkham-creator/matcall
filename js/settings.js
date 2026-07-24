@@ -12,6 +12,8 @@ const DisplayMap = {
     if (dbName === 'Liquid Sugar' || dbName === 'Liquid Sugar ') return '120001687 น้ำตาลเหลว';
     if (dbName === 'HFS42%') return '120001688 High Fructose Syrup 42%';
     if (dbName === 'Bioligo IMO') return '120001474 Bioligo (IMO)';
+    if (dbName === 'NaOH') return '150003906 Sodium Hydroxide 32%';
+    if (dbName === 'LPG') return '160000206 LPG Gas';
     return dbName;
   },
   supplier(dbName) {
@@ -122,77 +124,100 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // 2. Suppliers List
       const tbodySupplier = document.getElementById('supplier-table-body');
-      tbodySupplier.innerHTML = `<tr><td colspan="8" class="text-center py-4"><div class="spinner-border spinner-border-sm text-teal"></div> กำลังโหลด...</td></tr>`;
+      tbodySupplier.innerHTML = `<tr><td colspan="9" class="text-center py-4"><div class="spinner-border spinner-border-sm text-teal"></div> กำลังโหลด...</td></tr>`;
       
       const suppliersData = await API.getSuppliers();
       const quotasData = await API.getQuotas();
       // Filter suppliers
       suppliersList = isAdmin ? suppliersData : suppliersData.filter(s => s.plant === currentUser.plant_code);
       
-      if (!suppliersList.length) {
-        tbodySupplier.innerHTML = `<tr><td colspan="9" class="text-center text-muted py-4">ไม่พบข้อมูล Supplier</td></tr>`;
-      } else {
-        tbodySupplier.innerHTML = suppliersList.map(s => {
-          const sQuotas = (quotasData || []).filter(q => q.supplier_id === s.id);
-          sQuotas.sort((a, b) => new Date(b.contract_start) - new Date(a.contract_start));
-          const latestQuota = sQuotas[0] || {};
-          const formattedEnd = latestQuota.contract_end ? Fmt.date(latestQuota.contract_end) : '-';
-          return `
-            <tr data-supplier-id="${s.id}">
-              <td class="text-center fw-bold text-navy">${s.plant}</td>
-              <td class="fw-semibold text-teal">${DisplayMap.material(s.material_name)}</td>
-              <td>${DisplayMap.supplier(s.supplier_name)}</td>
-              <td style="font-size:12px; line-height:1.4; word-break: break-all;">${formatEmails(s.supplier_email)}</td>
-              <td style="font-size:12px; line-height:1.4; word-break: break-all;">${formatEmails(s.email_pan, true)}</td>
-              <td>${formattedEnd}</td>
-              <td class="text-end fw-semibold text-navy">${latestQuota.quota_percent ? latestQuota.quota_percent + '%' : '-'}</td>
-              <td class="text-end text-navy">${latestQuota.total_quota ? Fmt.num(latestQuota.total_quota) + ' kg' : '-'}</td>
-              <td class="text-center">
-                <button class="btn btn-outline-primary btn-sm btn-edit-supplier" style="padding: 2px 8px;">
-                  <i class="bi bi-pencil-square"></i> แก้ไข
-                </button>
-                <button class="btn btn-outline-danger btn-sm btn-delete-supplier" style="padding: 2px 8px;">
-                  <i class="bi bi-trash"></i>
-                </button>
-              </td>
-            </tr>
-          `;
-        }).join('');
+      // Auto-restrict filter-supplier-plant dropdown if not admin
+      const filterSupPlantEl = document.getElementById('filter-supplier-plant');
+      if (filterSupPlantEl) {
+        if (!isAdmin) {
+          filterSupPlantEl.value = currentUser.plant_code;
+          filterSupPlantEl.disabled = true;
+        } else {
+          // Bind filter event once
+          filterSupPlantEl.onchange = renderSuppliersTable;
+        }
+      }
 
-        // Edit button listener
-        document.querySelectorAll('.btn-edit-supplier').forEach(btn => {
-          btn.onclick = (e) => {
-            const row = e.target.closest('tr');
-            const supId = row.dataset.supplierId;
-            const sup = suppliersList.find(x => x.id == supId);
-            if (sup) {
-              openSupplierModal(sup);
-            }
-          };
-        });
+      renderSuppliersTable();
 
-        // Delete button listener
-        document.querySelectorAll('.btn-delete-supplier').forEach(btn => {
-          btn.onclick = async (e) => {
-            const row = e.target.closest('tr');
-            const supId = row.dataset.supplierId;
-            const sup = suppliersList.find(x => x.id == supId);
-            
-            Modal.confirm(
-              'ยืนยันการลบข้อมูล',
-              `คุณต้องการลบข้อมูล Supplier "${DisplayMap.supplier(sup.supplier_name)}" (${DisplayMap.material(sup.material_name)} - ${sup.plant}) ออกจากระบบหรือไม่?`,
-              async () => {
-                try {
-                  await API.deleteSupplier(supId);
-                  Toast.success('ลบข้อมูลสำเร็จ');
-                  loadAllData();
-                } catch(err) {
-                  Toast.error('ลบไม่สำเร็จ: ' + err.message);
-                }
+      function renderSuppliersTable() {
+        let list = [...suppliersList];
+        
+        const filterSupPlantVal = document.getElementById('filter-supplier-plant')?.value;
+        if (filterSupPlantVal) {
+          list = list.filter(s => s.plant === filterSupPlantVal);
+        }
+
+        if (!list.length) {
+          tbodySupplier.innerHTML = `<tr><td colspan="9" class="text-center text-muted py-4">ไม่พบข้อมูล Supplier</td></tr>`;
+        } else {
+          tbodySupplier.innerHTML = list.map(s => {
+            const sQuotas = (quotasData || []).filter(q => q.supplier_id === s.id);
+            sQuotas.sort((a, b) => new Date(b.contract_start) - new Date(a.contract_start));
+            const latestQuota = sQuotas[0] || {};
+            const formattedEnd = latestQuota.contract_end ? Fmt.date(latestQuota.contract_end) : '-';
+            return `
+              <tr data-supplier-id="${s.id}">
+                <td class="text-center fw-bold text-navy">${s.plant}</td>
+                <td class="fw-semibold text-teal">${DisplayMap.material(s.material_name)}</td>
+                <td>${DisplayMap.supplier(s.supplier_name)}</td>
+                <td style="font-size:12px; line-height:1.4; word-break: break-all;">${formatEmails(s.supplier_email)}</td>
+                <td style="font-size:12px; line-height:1.4; word-break: break-all;">${formatEmails(s.email_pan, true)}</td>
+                <td>${formattedEnd}</td>
+                <td class="text-end fw-semibold text-navy">${latestQuota.quota_percent ? latestQuota.quota_percent + '%' : '-'}</td>
+                <td class="text-end text-navy">${latestQuota.total_quota ? Fmt.num(latestQuota.total_quota) + ' kg' : '-'}</td>
+                <td class="text-center">
+                  <button class="btn btn-outline-primary btn-sm btn-edit-supplier" style="padding: 2px 8px;">
+                    <i class="bi bi-pencil-square"></i> แก้ไข
+                  </button>
+                  <button class="btn btn-outline-danger btn-sm btn-delete-supplier" style="padding: 2px 8px;">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+
+          // Edit button listener
+          document.querySelectorAll('.btn-edit-supplier').forEach(btn => {
+            btn.onclick = (e) => {
+              const row = e.target.closest('tr');
+              const supId = row.dataset.supplierId;
+              const sup = list.find(x => x.id == supId);
+              if (sup) {
+                openSupplierModal(sup);
               }
-            );
-          };
-        });
+            };
+          });
+
+          // Delete button listener
+          document.querySelectorAll('.btn-delete-supplier').forEach(btn => {
+            btn.onclick = async (e) => {
+              const row = e.target.closest('tr');
+              const supId = row.dataset.supplierId;
+              const sup = list.find(x => x.id == supId);
+              
+              Modal.confirm(
+                'ยืนยันการลบข้อมูล',
+                `คุณต้องการลบข้อมูล Supplier "${DisplayMap.supplier(sup.supplier_name)}" (${DisplayMap.material(sup.material_name)} - ${sup.plant}) ออกจากระบบหรือไม่?`,
+                async () => {
+                  try {
+                    await API.deleteSupplier(supId);
+                    Toast.success('ลบข้อมูลสำเร็จ');
+                    loadAllData();
+                  } catch(err) {
+                    Toast.error('ลบไม่สำเร็จ: ' + err.message);
+                  }
+                }
+              );
+            };
+          });
+        }
       }
 
       // 3. User lists (Admin only)
@@ -460,16 +485,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     e.preventDefault();
     const id = document.getElementById('supplier-id').value;
     
+    const plantEl = document.getElementById('sup-plant');
+    const matEl = document.getElementById('sup-material');
+    const nameEl = document.getElementById('sup-name');
+    const emailEl = document.getElementById('sup-email');
+    const emailPanEl = document.getElementById('sup-email-pan');
+    const startEl = document.getElementById('sup-start');
+    const endEl = document.getElementById('sup-end');
+    const pctEl = document.getElementById('sup-quota-pct');
+    const totalEl = document.getElementById('sup-quota-total');
+
     const payload = {
-      plant: document.getElementById('sup-plant').value,
-      material_name: document.getElementById('sup-material').value,
-      supplier_name: document.getElementById('sup-name').value.trim(),
-      supplier_email: document.getElementById('sup-email').value.trim() || null,
-      email_pan: document.getElementById('sup-email-pan').value.trim() || null,
-      contract_start: document.getElementById('sup-start').value || null,
-      contract_end: document.getElementById('sup-end').value || null,
-      quota_percent: document.getElementById('sup-quota-pct').value ? parseFloat(document.getElementById('sup-quota-pct').value) : null,
-      total_quota: document.getElementById('sup-quota-total').value ? parseFloat(document.getElementById('sup-quota-total').value) : null,
+      plant: plantEl ? plantEl.value : '',
+      material_name: matEl ? matEl.value : '',
+      supplier_name: nameEl ? nameEl.value.trim() : '',
+      supplier_email: (emailEl && emailEl.value) ? emailEl.value.trim() : null,
+      email_pan: (emailPanEl && emailPanEl.value) ? emailPanEl.value.trim() : null,
+      contract_start: (startEl && startEl.value) ? startEl.value : null,
+      contract_end: (endEl && endEl.value) ? endEl.value : null,
+      quota_percent: (pctEl && pctEl.value) ? parseFloat(pctEl.value) : null,
+      total_quota: (totalEl && totalEl.value) ? parseFloat(totalEl.value) : null,
     };
 
     try {
@@ -626,7 +661,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('plant-id').value = plant.id;
     document.getElementById('plt-code').value = plant.plant_code;
     document.getElementById('plt-name').value = plant.plant_name;
-    document.getElementById('plt-email-pan').value = plant.email_pan || '';
     document.getElementById('plt-email-plan').value = plant.email_plan || '';
     document.getElementById('plt-email-rw').value = plant.email_rw || '';
     document.getElementById('plt-email-pd').value = plant.email_pd || '';
@@ -639,7 +673,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     e.preventDefault();
     const id = document.getElementById('plant-id').value;
     const payload = {
-      email_pan: document.getElementById('plt-email-pan').value.trim() || null,
       email_plan: document.getElementById('plt-email-plan').value.trim() || null,
       email_rw: document.getElementById('plt-email-rw').value.trim() || null,
       email_pd: document.getElementById('plt-email-pd').value.trim() || null,
