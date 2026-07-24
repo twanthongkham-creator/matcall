@@ -26,12 +26,31 @@ const DisplayMap = {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Helper to format email list to newlines
-  function formatEmails(emailStr) {
+  // Helper to format email list to newlines with conditional coloring for PAN domains
+  function formatEmails(emailStr, isPan = false) {
     if (!emailStr) return '-';
     const arr = emailStr.split(';').map(x => x.trim()).filter(Boolean);
     if (!arr.length) return '-';
-    return arr.map(e => `${e};`).join('<br>');
+    
+    return arr.map(e => {
+      if (isPan) {
+        let color = '#475569'; // default slate-600
+        let bg = '#f1f5f9';
+        const lower = e.toLowerCase();
+        if (lower.includes('@sermsukplc.com')) {
+          color = '#0284c7'; // sky-600
+          bg = '#f0f9ff';
+        } else if (lower.includes('@oishigroup.com')) {
+          color = '#d97706'; // amber-600
+          bg = '#fffbeb';
+        } else if (lower.includes('@thaibev.com')) {
+          color = '#059669'; // emerald-600
+          bg = '#ecfdf5';
+        }
+        return `<span style="display:inline-block; padding:2px 6px; margin:2px 0; border-radius:4px; font-weight:600; font-size:11px; color:${color}; background-color:${bg}; border:1px solid currentColor;">${e}</span>`;
+      }
+      return `${e};`;
+    }).join(isPan ? ' ' : '<br>');
   }
 
   const currentUser = Auth.getUser();
@@ -76,7 +95,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         return `
           <tr data-plant-id="${p.id}">
             <td class="fw-bold text-navy">${p.plant_code} - ${p.plant_name}</td>
-            <td style="font-size:12px; line-height:1.4; word-break: break-all;">${formatEmails(p.email_pan)}</td>
             <td style="font-size:12px; line-height:1.4; word-break: break-all;">${formatEmails(p.email_plan)}</td>
             <td style="font-size:12px; line-height:1.4; word-break: break-all;">${formatEmails(p.email_rw)}</td>
             <td style="font-size:12px; line-height:1.4; word-break: break-all;">${formatEmails(p.email_pd)}</td>
@@ -112,7 +130,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       suppliersList = isAdmin ? suppliersData : suppliersData.filter(s => s.plant === currentUser.plant_code);
       
       if (!suppliersList.length) {
-        tbodySupplier.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4">ไม่พบข้อมูล Supplier</td></tr>`;
+        tbodySupplier.innerHTML = `<tr><td colspan="9" class="text-center text-muted py-4">ไม่พบข้อมูล Supplier</td></tr>`;
       } else {
         tbodySupplier.innerHTML = suppliersList.map(s => {
           const sQuotas = (quotasData || []).filter(q => q.supplier_id === s.id);
@@ -125,6 +143,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               <td class="fw-semibold text-teal">${DisplayMap.material(s.material_name)}</td>
               <td>${DisplayMap.supplier(s.supplier_name)}</td>
               <td style="font-size:12px; line-height:1.4; word-break: break-all;">${formatEmails(s.supplier_email)}</td>
+              <td style="font-size:12px; line-height:1.4; word-break: break-all;">${formatEmails(s.email_pan, true)}</td>
               <td>${formattedEnd}</td>
               <td class="text-end fw-semibold text-navy">${latestQuota.quota_percent ? latestQuota.quota_percent + '%' : '-'}</td>
               <td class="text-end text-navy">${latestQuota.total_quota ? Fmt.num(latestQuota.total_quota) + ' kg' : '-'}</td>
@@ -382,6 +401,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('sup-material').value = sup.material_name;
       document.getElementById('sup-name').value = sup.supplier_name;
       document.getElementById('sup-email').value = sup.supplier_email || '';
+      document.getElementById('sup-email-pan').value = sup.email_pan || '';
       
       initQuotaSec.style.display = 'none';
       quotaHistSec.style.display = 'block';
@@ -417,6 +437,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       title.textContent = 'เพิ่มข้อมูล Supplier ใหม่';
       idInput.value = '';
+      document.getElementById('sup-email-pan').value = '';
       if (!isAdmin) {
         plantSel.value = currentUser.plant_code;
       }
@@ -444,6 +465,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       material_name: document.getElementById('sup-material').value,
       supplier_name: document.getElementById('sup-name').value.trim(),
       supplier_email: document.getElementById('sup-email').value.trim() || null,
+      email_pan: document.getElementById('sup-email-pan').value.trim() || null,
       contract_start: document.getElementById('sup-start').value || null,
       contract_end: document.getElementById('sup-end').value || null,
       quota_percent: document.getElementById('sup-quota-pct').value ? parseFloat(document.getElementById('sup-quota-pct').value) : null,
@@ -456,7 +478,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           plant: payload.plant,
           material_name: payload.material_name,
           supplier_name: payload.supplier_name,
-          supplier_email: payload.supplier_email
+          supplier_email: payload.supplier_email,
+          email_pan: payload.email_pan
         });
         Toast.success('อัปเดตข้อมูล Supplier สำเร็จ');
       } else {
@@ -464,7 +487,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           plant: payload.plant,
           material_name: payload.material_name,
           supplier_name: payload.supplier_name,
-          supplier_email: payload.supplier_email
+          supplier_email: payload.supplier_email,
+          email_pan: payload.email_pan
         });
         
         if (payload.contract_start && payload.contract_end) {

@@ -215,13 +215,15 @@ try {
   let plantInfo = null;
   try { plantInfo = await API.getPlantByCode(plantCode); } catch(e){}
 
-  // Get supplier email
+  // Get supplier email and email_pan
   let supplierEmail = '';
+  let supplierEmailPan = '';
   try {
     const sups = await API.getSuppliers(plantCode);
     const mat  = items[0]?.material_name ?? '';
     const s    = sups.find(x => x.supplier_name === supplierName && x.material_name === mat);
     supplierEmail = s?.supplier_email ?? '';
+    supplierEmailPan = s?.email_pan ?? '';
   } catch(e){}
 
   const material = items[0]?.material_name ?? '';
@@ -318,7 +320,7 @@ try {
   const subjectPrefix = isChangeMail ? '[แก้ไขแผน] ' : '';
   const subject = `${subjectPrefix}แจ้งแผนการเรียกเข้า ${material} โรงงาน ${plantInfo?.plant_name ?? plantCode} (WK${wk})${poLabel ? ` [PO: ${poLabel}]` : ''}`;
 
-  const ccArr = [plantInfo?.email_pan, plantInfo?.email_plan, plantInfo?.email_rw,
+  const ccArr = [supplierEmailPan, plantInfo?.email_plan, plantInfo?.email_rw,
                  plantInfo?.email_pd, plantInfo?.email_manager]
                  .filter(e => e && e.trim().length > 0);
 

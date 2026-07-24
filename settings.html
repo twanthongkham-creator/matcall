@@ -182,7 +182,6 @@
                   <thead>
                     <tr>
                       <th width="120">โรงงาน</th>
-                      <th>PAN Emails</th>
                       <th>Planning Emails</th>
                       <th>Warehouse (RW) Emails</th>
                       <th>PD Emails</th>
@@ -215,6 +214,7 @@
                       <th>วัตถุดิบ</th>
                       <th>Supplier Name</th>
                       <th>Supplier Email (คั่นด้วย `;`)</th>
+                      <th>อีเมล PAN (ภายใน)</th>
                       <th>สัญญาหมดอายุ</th>
                       <th class="th-right">โควต้า (%)</th>
                       <th class="th-right">โควต้ารวม (kg)</th>
@@ -315,9 +315,15 @@
             <input type="text" id="sup-name" class="form-control form-control-sm" required placeholder="เช่น บจก. ลินเด้">
           </div>
           <div class="col-6">
-            <label class="form-label">อีเมลติดต่อ (คั่นด้วย `;`)</label>
+            <label class="form-label">อีเมลติดต่อ (คั่นด้วย `;` )</label>
             <input type="text" id="sup-email" class="form-control form-control-sm" placeholder="email1@test.com; email2@test.com">
           </div>
+        </div>
+        <!-- Row 3: อีเมล PAN (ภายใน) -->
+        <div class="mb-3">
+          <label class="form-label">อีเมล PAN (ภายในโรงงาน) <small class="text-muted fw-normal">(คั่นด้วย `;` )</small></label>
+          <input type="text" id="sup-email-pan" class="form-control form-control-sm" placeholder="email1@sermsukplc.com; email2@oishigroup.com">
+          <small class="text-muted">ใช้รับอีเมลตามวัตถุดิบและโรงงานนี้</small>
         </div>
 
         <!-- Initial Quota Section (new supplier) -->
@@ -415,12 +421,8 @@
         </div>
 
         <div class="row g-3">
-          <!-- PAN | Planning -->
-          <div class="col-6">
-            <label class="form-label">PAN Emails <small class="text-muted fw-normal">(คั่นด้วย `;`)</small></label>
-            <input type="text" id="plt-email-pan" class="form-control form-control-sm" placeholder="email1@example.com;">
-          </div>
-          <div class="col-6">
+          <!-- Planning Emails -->
+          <div class="col-12">
             <label class="form-label">Planning Emails <small class="text-muted fw-normal">(คั่นด้วย `;`)</small></label>
             <input type="text" id="plt-email-plan" class="form-control form-control-sm" placeholder="email1@example.com;">
           </div>
