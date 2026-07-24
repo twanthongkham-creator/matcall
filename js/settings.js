@@ -379,6 +379,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const form = document.getElementById('supplier-form');
     form.reset();
     
+    // Clear flatpickr inputs upon opening/resetting supplier modal
+    if (fpSupStart) fpSupStart.clear();
+    if (fpSupEnd) fpSupEnd.clear();
+    if (fpNewQuotaStart) fpNewQuotaStart.clear();
+    if (fpNewQuotaEnd) fpNewQuotaEnd.clear();
+
     const title = document.getElementById('supplier-modal-title');
     const idInput = document.getElementById('supplier-id');
     const plantSel = document.getElementById('sup-plant');
@@ -444,12 +450,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       initQuotaSec.style.display = 'block';
       quotaHistSec.style.display = 'none';
     }
-    
-    // Clear flatpickr inputs upon opening/resetting supplier modal
-    if (fpSupStart) fpSupStart.clear();
-    if (fpSupEnd) fpSupEnd.clear();
-    if (fpNewQuotaStart) fpNewQuotaStart.clear();
-    if (fpNewQuotaEnd) fpNewQuotaEnd.clear();
 
     Modal.show('supplier-modal');
   }
